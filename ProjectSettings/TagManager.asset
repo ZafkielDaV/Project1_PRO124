@@ -48,5 +48,11 @@ TagManager:
   - name: Shadow house
     uniqueID: 3871156699
     locked: 0
+  - name: Player
+    uniqueID: 1017962897
+    locked: 0
+  - name: Every thing
+    uniqueID: 677459533
+    locked: 0
   m_RenderingLayers:
   - Default
