@@ -171361,7 +171361,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d051c9a88d991bd4f8b3362b7403b6ee, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Player
-  moveSpeed: 6
+  moveSpeed: 7
   jumpForce: 8.6
 --- !u!50 &2068775956
 Rigidbody2D:
