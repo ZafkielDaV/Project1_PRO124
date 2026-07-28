@@ -51,6 +51,8 @@ public class Player : MonoBehaviour
             animator.SetBool("isFalling", false);
         }
 
+        // Luôn cập nhật trạng thái isGrounded trong Animator
+        animator.SetBool("isGrounded", isGrounded);
     }
 
     private void Flip()
@@ -66,8 +68,9 @@ public class Player : MonoBehaviour
         if (collision.gameObject.CompareTag("Ground"))
         {
             isGrounded = true;
-            animator.SetBool("isJumping", false); // tắt animation Jump khi chạm đất
-            animator.SetBool("isFalling", false); // tắt animation Fall khi chạm đất
+            animator.SetBool("isJumping", false);
+            animator.SetBool("isFalling", false);
+            animator.SetBool("isGrounded", true); // cập nhật khi chạm đất
         }
     }
 
@@ -76,6 +79,7 @@ public class Player : MonoBehaviour
         if (collision.gameObject.CompareTag("Ground"))
         {
             isGrounded = false;
+            animator.SetBool("isGrounded", false); // cập nhật khi rời đất
         }
     }
 }
