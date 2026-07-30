@@ -1,170 +1,60 @@
 using UnityEngine;
 using System.Collections;
 
-public class EnemyMovement : MonoBehaviour
+public class EnemyPatrol : MonoBehaviour
 {
-    public float moveSpeed = 2f;
-    public float chaseSpeed = 3f;
-    public float moveRange = 3f;
-    public Animator animator;
-    public float detectDistance = 6f;
-    public LayerMask playerLayer;
-    public Transform player;
-
-    public GameObject attackHitBox; // gán trong Inspector (child của Enemy)
+    public float moveSpeed = 2f;          // tốc độ di chuyển
+    public float moveRange = 3f;          // phạm vi di chuyển từ vị trí ban đầu
+    public Animator animator;             // Animator để chuyển Idle/Walk
 
     private Vector2 startPos;
     private Vector2 targetPos;
-    private bool isMoving = false;
-    private bool isAttacking = false;
     private SpriteRenderer spriteRenderer;
-
-    private bool lastAttackWasAt1 = false;
 
     void Start()
     {
         startPos = transform.position;
         spriteRenderer = GetComponent<SpriteRenderer>();
-        SetRandomTarget();
-
-        if (attackHitBox != null)
-            attackHitBox.SetActive(false); // tắt mặc định
+        StartCoroutine(PatrolRoutine());
     }
 
-    void Update()
+    IEnumerator PatrolRoutine()
     {
-        if (!isAttacking)
+        while (true)
         {
-            if (isMoving)
-                Patrol();
-            else
-                ChasePlayer();
-        }
-
-        DetectPlayer();
-
-        // Flip Attack_HitBox theo Enemy
-        if (attackHitBox != null)
-        {
-            Vector3 scale = attackHitBox.transform.localScale;
-            scale.x = spriteRenderer.flipX ? -Mathf.Abs(scale.x) : Mathf.Abs(scale.x);
-            attackHitBox.transform.localScale = scale;
-        }
-    }
-
-    void Patrol()
-    {
-        transform.position = Vector2.MoveTowards(transform.position, targetPos, moveSpeed * Time.deltaTime);
-        animator.SetBool("isWalking", true);
-
-        if (targetPos.x > transform.position.x) spriteRenderer.flipX = false;
-        else if (targetPos.x < transform.position.x) spriteRenderer.flipX = true;
-
-        if (Vector2.Distance(transform.position, targetPos) < 0.1f)
-        {
-            isMoving = false;
-            animator.SetBool("isWalking", false);
-            StartCoroutine(WaitAndMove());
-        }
-    }
-
-    void SetRandomTarget()
-    {
-        float randX = Random.Range(-moveRange, moveRange);
-        targetPos = new Vector2(startPos.x + randX, startPos.y);
-        isMoving = true;
-    }
-
-    IEnumerator WaitAndMove()
-    {
-        yield return new WaitForSeconds(Random.Range(1f, 3f));
-        SetRandomTarget();
-    }
-
-    void DetectPlayer()
-    {
-        Vector2 direction = spriteRenderer.flipX ? Vector2.left : Vector2.right;
-        RaycastHit2D hit = Physics2D.Raycast(transform.position, direction, detectDistance, playerLayer);
-        Debug.DrawRay(transform.position, direction * detectDistance, Color.red);
-
-        if (hit.collider != null)
-        {
-            float distance = Vector2.Distance(transform.position, hit.collider.transform.position);
-
-            if (player.position.x > transform.position.x) spriteRenderer.flipX = false;
-            else spriteRenderer.flipX = true;
-
-            if (distance <= 2.3f && !isAttacking)
+            // chọn vị trí ngẫu nhiên trong phạm vi, tránh quá gần
+            float randX;
+            do
             {
-                if (lastAttackWasAt1)
-                {
-                    StartCoroutine(PlayAttack("At2"));
-                    lastAttackWasAt1 = false;
-                }
-                else
-                {
-                    StartCoroutine(PlayAttack("At1"));
-                    lastAttackWasAt1 = true;
-                }
-            }
-        }
-        else
-        {
-            isAttacking = false;
-            animator.SetBool("At1", false);
-            animator.SetBool("At2", false);
-        }
-    }
+                randX = Random.Range(-moveRange, moveRange);
+            } while (Mathf.Abs(randX) < 0.2f); // đảm bảo có khoảng cách để di chuyển
 
-    IEnumerator PlayAttack(string attackBool)
-    {
-        isAttacking = true;
+            targetPos = new Vector2(startPos.x + randX, startPos.y);
 
-        animator.SetBool("At1", false);
-        animator.SetBool("At2", false);
-
-        animator.SetBool(attackBool, true);
-        Debug.Log("Enemy dùng " + attackBool);
-
-        // Bật HitBox
-        if (attackHitBox != null)
-            attackHitBox.SetActive(true);
-
-        yield return new WaitForSeconds(0.5f);
-
-        animator.SetBool(attackBool, false);
-
-        // Tắt HitBox sau khi đánh
-        if (attackHitBox != null)
-            attackHitBox.SetActive(false);
-
-        yield return new WaitForSeconds(0.3f);
-
-        isAttacking = false;
-    }
-
-    void ChasePlayer()
-    {
-        if (player != null && !isAttacking)
-        {
-            float distance = Vector2.Distance(transform.position, player.position);
-            if (distance <= detectDistance && distance > 2f)
-            {
-                Vector2 newPos = new Vector2(
-                    Mathf.MoveTowards(transform.position.x, player.position.x, chaseSpeed * Time.deltaTime),
-                    transform.position.y
-                );
-                transform.position = newPos;
-
-                if (player.position.x > transform.position.x) spriteRenderer.flipX = false;
-                else spriteRenderer.flipX = true;
-
+            // nếu có khoảng cách đủ lớn thì bật Walk
+            if (Vector2.Distance(transform.position, targetPos) > 0.1f)
                 animator.SetBool("isWalking", true);
-            }
-            else
+
+            // di chuyển tới target
+            while (Vector2.Distance(transform.position, targetPos) > 0.1f)
             {
-                animator.SetBool("isWalking", false);
+                transform.position = Vector2.MoveTowards(
+                    transform.position,
+                    targetPos,
+                    moveSpeed * Time.deltaTime
+                );
+
+                // flip theo hướng
+                spriteRenderer.flipX = targetPos.x > transform.position.x ? false : true;
+
+                yield return null;
             }
+
+            // tới nơi → Idle
+            animator.SetBool("isWalking", false);
+
+            // dừng ngẫu nhiên 1–3s
+            yield return new WaitForSeconds(Random.Range(1f, 3f));
         }
     }
 }
