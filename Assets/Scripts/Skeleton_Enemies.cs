@@ -175,15 +175,54 @@ public class Enemy : MonoBehaviour
 
     // ---------------- KNOCKBACK ----------------
 
-    // Được AttackHitBox gọi khi enemy trúng đòn
-    public void ApplyKnockback(float direction, float force)
+
+    public void ApplyKnockback(float direction, float force, float upForce = 4f)
     {
         isKnockedBack = true;
         knockbackTimer = knockbackDuration;
 
-        rb.linearVelocity = new Vector2(direction * force, 0f);
         if (animator != null)
             animator.SetTrigger("Hurt");
+
+        StopKnockbackRoutineIfRunning();
+        knockbackRoutine = StartCoroutine(KnockbackRoutine(direction, force, upForce));
+    }
+
+    private Coroutine knockbackRoutine;
+
+    private void StopKnockbackRoutineIfRunning()
+    {
+        if (knockbackRoutine != null)
+            StopCoroutine(knockbackRoutine);
+    }
+
+    private IEnumerator KnockbackRoutine(float direction, float force, float upForce)
+    {
+        float elapsed = 0f;
+        Vector2 startPos = rb.position;
+        float horizontalDistance = direction * force * knockbackDuration;
+
+        while (elapsed < knockbackDuration)
+        {
+            elapsed += Time.deltaTime;
+
+            // Clamp để không bao giờ vượt quá 1 -> tránh sin() ra số âm ở frame cuối
+            float t = Mathf.Clamp01(elapsed / knockbackDuration);
+
+            float x = startPos.x + horizontalDistance * t;
+            float y = startPos.y + (upForce * knockbackDuration * 0.5f) * Mathf.Sin(t * Mathf.PI);
+
+            rb.MovePosition(new Vector2(x, y));
+
+            yield return null;
+        }
+
+        // Ép về đúng vị trí Y ban đầu để chắc chắn không bị lệch/tụt đất
+        float finalX = startPos.x + horizontalDistance;
+        rb.MovePosition(new Vector2(finalX, startPos.y));
+
+        rb.linearVelocity = Vector2.zero;
+        knockbackRoutine = null;
     }
 
     // ---------------- WANDER ----------------

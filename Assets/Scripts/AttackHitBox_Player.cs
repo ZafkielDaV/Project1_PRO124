@@ -4,16 +4,17 @@ public class AttackHitBox : MonoBehaviour
 {
     private bool attackFacingRight = true;
     private float knockbackForce = 6f;
+    private float knockbackUpForce = 4f; // lực đẩy lên
 
-    public void Setup(bool facingRight, float force)
+    public void Setup(bool facingRight, float force, float upForce = 4f)
     {
         attackFacingRight = facingRight;
         knockbackForce = force;
+        knockbackUpForce = upForce;
     }
 
     private void OnTriggerEnter2D(Collider2D other)
     {
-        // DEBUG: in ra MỌI thứ hitbox chạm vào, bất kể tag gì
         Debug.Log($"[HitBox] Trigger với: {other.gameObject.name}, Tag: {other.tag}, Layer: {LayerMask.LayerToName(other.gameObject.layer)}");
 
         if (other.CompareTag("Enemy"))
@@ -22,7 +23,7 @@ public class AttackHitBox : MonoBehaviour
             if (enemy != null)
             {
                 float dir = attackFacingRight ? 1f : -1f;
-                enemy.ApplyKnockback(dir, knockbackForce);
+                enemy.ApplyKnockback(dir, knockbackForce, knockbackUpForce);
                 Debug.Log("[HitBox] Đã gọi ApplyKnockback thành công!");
             }
             else
