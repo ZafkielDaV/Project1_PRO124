@@ -1,60 +1,308 @@
 using UnityEngine;
 using System.Collections;
 
-public class EnemyPatrol : MonoBehaviour
+public class Enemy : MonoBehaviour
 {
-    public float moveSpeed = 2f;          // tốc độ di chuyển
-    public float moveRange = 3f;          // phạm vi di chuyển từ vị trí ban đầu
-    public Animator animator;             // Animator để chuyển Idle/Walk
+    [Header("Movement")]
+    public float moveSpeed = 2f;
+    public float chaseSpeed = 3.5f;
 
-    private Vector2 startPos;
-    private Vector2 targetPos;
-    private SpriteRenderer spriteRenderer;
+    [Header("Random Wander")]
+    public float minMoveTime = 1f;
+    public float maxMoveTime = 3f;
+    public float minIdleTime = 0.5f;
+    public float maxIdleTime = 2f;
+    public float wanderRange = 4f;
+
+    [Header("Player Detection (Raycast)")]
+    public Transform player;
+    public float detectRange = 6f;
+    public LayerMask obstacleLayer;
+    public LayerMask playerLayer;
+    public float loseSightExtraRange = 2f;
+
+    [Header("Ground / Physics")]
+    public LayerMask groundLayer;
+    public Transform groundCheck;
+    public float groundCheckRadius = 0.2f;
+
+    [Header("Knockback")]
+    public float knockbackDuration = 0.2f; // thời gian AI bị khóa sau khi trúng đòn
+
+    [Header("Attack Player")]
+    public float attackRange = 1f;
+    public float attackCooldown = 1.5f;
+    public float attackDamage = 1f;
+    public float attackKnockbackForce = 6f;
+    public float attackWindup = 0.2f;
+    public GameObject attackHitBox; // GameObject hitbox riêng của Enemy
+
+    private EnemyHitBox hitBoxScript;
+    private Rigidbody2D rb;
+    private Animator animator;
+    private bool facingRight = true;
+    private bool isGrounded;
+
+    private Vector3 spawnPosition;
+    private float moveDirection = 1f;
+    private float stateTimer = 0f;
+    private bool isIdling = false;
+
+    private bool isChasing = false;
+
+    private bool isKnockedBack = false;
+    private float knockbackTimer = 0f;
+
+    private bool isAttacking = false;
+    private float lastAttackTime = -999f;
 
     void Start()
     {
-        startPos = transform.position;
-        spriteRenderer = GetComponent<SpriteRenderer>();
-        StartCoroutine(PatrolRoutine());
+        rb = GetComponent<Rigidbody2D>();
+        animator = GetComponent<Animator>();
+        spawnPosition = transform.position;
+
+        rb.constraints = RigidbodyConstraints2D.FreezeRotation;
+
+        PickNewIdleOrMove();
+        if (attackHitBox != null)
+        {
+            attackHitBox.SetActive(false);
+            hitBoxScript = attackHitBox.GetComponent<EnemyHitBox>();
+        }
     }
 
-    IEnumerator PatrolRoutine()
+    void Update()
     {
-        while (true)
+        isGrounded = groundCheck != null &&
+            Physics2D.OverlapCircle(groundCheck.position, groundCheckRadius, groundLayer);
+
+        // Trong lúc bị knockback: bỏ qua toàn bộ AI, chỉ đếm ngược thời gian
+        if (isKnockedBack)
         {
-            // chọn vị trí ngẫu nhiên trong phạm vi, tránh quá gần
-            float randX;
-            do
-            {
-                randX = Random.Range(-moveRange, moveRange);
-            } while (Mathf.Abs(randX) < 0.2f); // đảm bảo có khoảng cách để di chuyển
+            knockbackTimer -= Time.deltaTime;
+            if (knockbackTimer <= 0f)
+                isKnockedBack = false;
 
-            targetPos = new Vector2(startPos.x + randX, startPos.y);
-
-            // nếu có khoảng cách đủ lớn thì bật Walk
-            if (Vector2.Distance(transform.position, targetPos) > 0.1f)
-                animator.SetBool("isWalking", true);
-
-            // di chuyển tới target
-            while (Vector2.Distance(transform.position, targetPos) > 0.1f)
-            {
-                transform.position = Vector2.MoveTowards(
-                    transform.position,
-                    targetPos,
-                    moveSpeed * Time.deltaTime
-                );
-
-                // flip theo hướng
-                spriteRenderer.flipX = targetPos.x > transform.position.x ? false : true;
-
-                yield return null;
-            }
-
-            // tới nơi → Idle
-            animator.SetBool("isWalking", false);
-
-            // dừng ngẫu nhiên 1–3s
-            yield return new WaitForSeconds(Random.Range(1f, 3f));
+            UpdateAnimator();
+            return; // không chạy Wander/Chase/Detect trong lúc này
         }
+
+        // Trong lúc đang tự ra đòn: đứng yên, không chạy AI khác
+        if (isAttacking)
+        {
+            rb.linearVelocity = new Vector2(0f, rb.linearVelocity.y);
+            UpdateAnimator();
+            return;
+        }
+
+        bool playerDetected = DetectPlayerByRaycast();
+
+        if (playerDetected)
+        {
+            isChasing = true;
+        }
+        else if (isChasing)
+        {
+            isChasing = false;
+            PickNewIdleOrMove();
+        }
+
+        if (isChasing)
+        {
+            float distToPlayer = player != null ? Mathf.Abs(player.position.x - transform.position.x) : Mathf.Infinity;
+
+            if (distToPlayer <= attackRange)
+            {
+                // Đã vào tầm đánh -> luôn đứng yên tại đây, không lao thêm vào Player
+                rb.linearVelocity = new Vector2(0f, rb.linearVelocity.y);
+
+                // Quay mặt đúng hướng Player dù đang đứng yên chờ
+                float dir = player.position.x - transform.position.x >= 0f ? 1f : -1f;
+                if ((dir > 0 && !facingRight) || (dir < 0 && facingRight))
+                    Flip();
+
+                // Chỉ ra đòn khi hết cooldown, còn không thì tiếp tục đứng yên chờ
+                if (Time.time - lastAttackTime >= attackCooldown)
+                {
+                    StartCoroutine(DoAttackPlayer());
+                }
+            }
+            else
+            {
+                ChasePlayer();
+            }
+        }
+        else
+        {
+            Wander();
+        }
+
+        UpdateAnimator();
+    }
+
+    // ---------------- ATTACK PLAYER ----------------
+
+    IEnumerator DoAttackPlayer()
+    {
+        isAttacking = true;
+        lastAttackTime = Time.time;
+
+        rb.linearVelocity = new Vector2(0f, rb.linearVelocity.y);
+
+        if (animator != null)
+            animator.SetTrigger("Attack");
+
+        // Chờ "vung tay" xong rồi mới bật hitbox thật sự gây damage
+        yield return new WaitForSeconds(attackWindup);
+
+        if (attackHitBox != null)
+        {
+            attackHitBox.SetActive(true);
+
+            if (hitBoxScript != null)
+                hitBoxScript.Setup(facingRight, attackDamage, attackKnockbackForce);
+        }
+
+        // Hitbox chỉ bật trong khoảng thời gian ngắn (khớp lúc vũ khí thật sự vung tới)
+        yield return new WaitForSeconds(0.1f);
+
+        if (attackHitBox != null)
+            attackHitBox.SetActive(false);
+
+        isAttacking = false;
+    }
+
+    // ---------------- KNOCKBACK ----------------
+
+    // Được AttackHitBox gọi khi enemy trúng đòn
+    public void ApplyKnockback(float direction, float force)
+    {
+        isKnockedBack = true;
+        knockbackTimer = knockbackDuration;
+
+        rb.linearVelocity = new Vector2(direction * force, 0f);
+        if (animator != null)
+            animator.SetTrigger("Hurt");
+    }
+
+    // ---------------- WANDER ----------------
+
+    void Wander()
+    {
+        stateTimer -= Time.deltaTime;
+
+        if (isIdling)
+        {
+            rb.linearVelocity = new Vector2(0f, rb.linearVelocity.y);
+        }
+        else
+        {
+            float distFromSpawn = transform.position.x - spawnPosition.x;
+            if (distFromSpawn > wanderRange && moveDirection > 0f)
+                moveDirection = -1f;
+            else if (distFromSpawn < -wanderRange && moveDirection < 0f)
+                moveDirection = 1f;
+
+            rb.linearVelocity = new Vector2(moveDirection * moveSpeed, rb.linearVelocity.y);
+
+            if ((moveDirection > 0 && !facingRight) || (moveDirection < 0 && facingRight))
+                Flip();
+        }
+
+        if (stateTimer <= 0f)
+        {
+            PickNewIdleOrMove();
+        }
+    }
+
+    void PickNewIdleOrMove()
+    {
+        isIdling = !isIdling;
+
+        if (isIdling)
+        {
+            stateTimer = Random.Range(minIdleTime, maxIdleTime);
+        }
+        else
+        {
+            stateTimer = Random.Range(minMoveTime, maxMoveTime);
+            moveDirection = Random.value > 0.5f ? 1f : -1f;
+        }
+    }
+
+    // ---------------- CHASE ----------------
+
+    void ChasePlayer()
+    {
+        if (player == null) return;
+
+        float dirX = player.position.x - transform.position.x;
+        float dir = Mathf.Sign(dirX);
+
+        rb.linearVelocity = new Vector2(dir * chaseSpeed, rb.linearVelocity.y);
+
+        if ((dir > 0 && !facingRight) || (dir < 0 && facingRight))
+            Flip();
+    }
+
+    // ---------------- DETECTION ----------------
+
+    bool DetectPlayerByRaycast()
+    {
+        if (player == null) return false;
+
+        Vector2 origin = transform.position;
+        float dir = facingRight ? 1f : -1f;
+        float range = isChasing ? detectRange + loseSightExtraRange : detectRange;
+
+        RaycastHit2D hit = Physics2D.Raycast(origin, new Vector2(dir, 0f), range, obstacleLayer | playerLayer);
+
+        if (hit.collider != null)
+        {
+            if (((1 << hit.collider.gameObject.layer) & playerLayer) != 0)
+                return true;
+        }
+
+        return false;
+    }
+
+    // ---------------- FLIP ----------------
+
+    void Flip()
+    {
+        facingRight = !facingRight;
+        Vector3 scale = transform.localScale;
+        scale.x *= -1f;
+        transform.localScale = scale;
+    }
+
+    // ---------------- ANIMATION ----------------
+
+    void UpdateAnimator()
+    {
+        if (animator == null) return;
+
+        float speed = Mathf.Abs(rb.linearVelocity.x);
+        animator.SetFloat("Speed", speed);
+        animator.SetBool("isWalking", speed > 0.05f);
+    }
+
+    private void OnCollisionEnter2D(Collision2D collision)
+    {
+        if (collision.gameObject.CompareTag("Player"))
+        {
+        }
+    }
+
+    void OnDrawGizmosSelected()
+    {
+        Gizmos.color = Color.red;
+        float dir = facingRight ? 1f : -1f;
+        Vector3 origin = transform.position;
+        Gizmos.DrawLine(origin, origin + new Vector3(dir * detectRange, 0f, 0f));
+
+        Gizmos.color = Color.yellow;
+        Gizmos.DrawWireSphere(transform.position, attackRange);
     }
 }

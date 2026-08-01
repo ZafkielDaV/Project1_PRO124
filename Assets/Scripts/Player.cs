@@ -5,20 +5,25 @@ public class Player : MonoBehaviour
 {
     public float moveSpeed = 5f;
     public float jumpForce = 7f;
+
+    [Header("Attack")]
     public GameObject attackHitBox;
-    public float attackDuration = 0.1f;
-    public float comboResetTime = 1f;
-    public int damage = 1;
-    public float knockbackForce = 5f;
+    public float attackDuration = 0.3f;
+    public float attackMoveDistance = 0.5f;
+    public float knockbackForce = 8f; // lực đẩy lùi enemy khi trúng đòn
+
+    [Header("Hurt")]
+    public float hurtLockDuration = 0.2f; // thời gian bị khóa di chuyển/attack sau khi trúng đòn
 
     private Rigidbody2D rb;
     private bool isGrounded;
     private Animator animator;
     private bool facingRight = true;
 
-    private int comboStep = 0;
-    private float lastAttackTime = 0f;
-    private bool isAttacking = false;   // chống spam
+    private bool isAttacking = false;
+    private AttackHitBox hitBoxScript;
+
+    private bool isHurt = false;
 
     void Start()
     {
@@ -26,12 +31,15 @@ public class Player : MonoBehaviour
         animator = GetComponent<Animator>();
 
         if (attackHitBox != null)
+        {
             attackHitBox.SetActive(false);
+            hitBoxScript = attackHitBox.GetComponent<AttackHitBox>();
+        }
     }
 
     void Update()
     {
-        if (!isAttacking) // chỉ cho di chuyển khi không attack
+        if (!isAttacking && !isHurt) // chỉ cho di chuyển khi không attack và không đang hurt
         {
             float moveInput = Input.GetAxis("Horizontal");
             rb.linearVelocity = new Vector2(moveInput * moveSpeed, rb.linearVelocity.y);
@@ -42,7 +50,7 @@ public class Player : MonoBehaviour
             else if (moveInput < 0 && facingRight) Flip();
         }
 
-        if (Input.GetKeyDown(KeyCode.Space) && isGrounded && !isAttacking)
+        if (Input.GetKeyDown(KeyCode.Space) && isGrounded && !isAttacking && !isHurt)
         {
             rb.AddForce(Vector2.up * jumpForce, ForceMode2D.Impulse);
             animator.SetBool("isJumping", true);
@@ -51,18 +59,9 @@ public class Player : MonoBehaviour
         animator.SetBool("isFalling", !isGrounded && rb.linearVelocity.y < -1f);
         animator.SetBool("isGrounded", isGrounded);
 
-        // Attack combo bằng phím J
-        if (Input.GetKeyDown(KeyCode.J) && !isAttacking)
+        // Chỉ nhận phím tấn công khi: KHÔNG đang attack, KHÔNG đang hurt, VÀ đang đứng trên đất
+        if (Input.GetKeyDown(KeyCode.J) && !isAttacking && !isHurt && isGrounded)
         {
-            if (Time.time - lastAttackTime > comboResetTime)
-                comboStep = 0;
-
-            comboStep++;
-            if (comboStep > 3) comboStep = 1;
-
-            lastAttackTime = Time.time;
-
-            animator.SetFloat("AttackStep", comboStep);
             StartCoroutine(DoAttack());
         }
     }
@@ -99,22 +98,47 @@ public class Player : MonoBehaviour
     {
         isAttacking = true;
 
-        // nhích lên một đoạn nhỏ
-        transform.position += new Vector3(0.15f, 0f, 0f);
+        animator.SetTrigger("Attack");
 
-        // khóa di chuyển ngang
         rb.linearVelocity = new Vector2(0f, rb.linearVelocity.y);
+        transform.position += new Vector3(facingRight ? attackMoveDistance : -attackMoveDistance, 0f, 0f);
 
         if (attackHitBox != null)
+        {
             attackHitBox.SetActive(true);
+
+            if (hitBoxScript != null)
+                hitBoxScript.Setup(facingRight, knockbackForce);
+        }
 
         yield return new WaitForSeconds(attackDuration);
 
         if (attackHitBox != null)
             attackHitBox.SetActive(false);
 
-        animator.SetFloat("AttackStep", 0);
-
         isAttacking = false;
+    }
+
+    // ---------------- HURT / TAKE DAMAGE ----------------
+
+    // Được Enemy gọi khi tấn công trúng Player
+    public void TakeDamage(float damage, float attackerDirection, float knockback)
+    {
+        if (isHurt || isAttacking) return; // tránh dính đòn liên tục / chồng animation Attack
+
+        // TODO: trừ máu ở đây nếu bạn có hệ thống HP, ví dụ currentHealth -= damage;
+
+        animator.SetTrigger("Hurt");
+
+        rb.linearVelocity = new Vector2(attackerDirection * knockback, rb.linearVelocity.y);
+
+        StartCoroutine(HurtLock());
+    }
+
+    IEnumerator HurtLock()
+    {
+        isHurt = true;
+        yield return new WaitForSeconds(hurtLockDuration);
+        isHurt = false;
     }
 }
