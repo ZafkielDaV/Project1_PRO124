@@ -6,7 +6,6 @@ public class EnemyHitBox : MonoBehaviour
     private float knockbackForce = 6f;
     private bool attackFacingRight = true;
 
-    // Được Enemy gọi mỗi lần bắt đầu ra đòn
     public void Setup(bool facingRight, float dmg, float force)
     {
         attackFacingRight = facingRight;
@@ -16,14 +15,14 @@ public class EnemyHitBox : MonoBehaviour
 
     private void OnTriggerEnter2D(Collider2D other)
     {
-        if (other.CompareTag("Player"))
+        if (!other.CompareTag("Player")) return;
+
+        // Dùng GetComponentInParent để không bị lỡ nếu Collider nằm ở object con của Player
+        Player playerScript = other.GetComponentInParent<Player>();
+        if (playerScript != null)
         {
-            Player playerScript = other.GetComponent<Player>();
-            if (playerScript != null)
-            {
-                float dir = attackFacingRight ? 1f : -1f;
-                playerScript.TakeDamage(damage, dir, knockbackForce);
-            }
+            float dir = attackFacingRight ? 1f : -1f;
+            playerScript.TakeDamage(damage, dir, knockbackForce);
         }
     }
 }

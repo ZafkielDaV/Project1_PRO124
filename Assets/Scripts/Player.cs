@@ -15,6 +15,11 @@ public class Player : MonoBehaviour
     [Header("Hurt")]
     public float hurtLockDuration = 0.2f; // thời gian bị khóa di chuyển/attack sau khi trúng đòn
 
+    [Header("Health")]
+    public float maxHealth = 100f;
+    public float currentHealth;
+    public HealthBar healthBar; // kéo thả HealthBar UI vào đây trong Inspector
+
     private Rigidbody2D rb;
     private bool isGrounded;
     private Animator animator;
@@ -24,6 +29,7 @@ public class Player : MonoBehaviour
     private AttackHitBox hitBoxScript;
 
     private bool isHurt = false;
+    private bool isDead = false;
 
     void Start()
     {
@@ -35,10 +41,17 @@ public class Player : MonoBehaviour
             attackHitBox.SetActive(false);
             hitBoxScript = attackHitBox.GetComponent<AttackHitBox>();
         }
+
+        // Khởi tạo máu
+        currentHealth = maxHealth;
+        if (healthBar != null)
+            healthBar.SetMaxHealth(maxHealth);
     }
 
     void Update()
     {
+        if (isDead) return; // không cho làm gì nữa nếu đã chết
+
         if (!isAttacking && !isHurt) // chỉ cho di chuyển khi không attack và không đang hurt
         {
             float moveInput = Input.GetAxis("Horizontal");
@@ -124,15 +137,24 @@ public class Player : MonoBehaviour
     // Được Enemy gọi khi tấn công trúng Player
     public void TakeDamage(float damage, float attackerDirection, float knockback)
     {
-        if (isHurt || isAttacking) return; // tránh dính đòn liên tục / chồng animation Attack
+        if (isHurt || isAttacking || isDead) return; // tránh dính đòn liên tục / chồng animation Attack
 
-        // TODO: trừ máu ở đây nếu bạn có hệ thống HP, ví dụ currentHealth -= damage;
+        currentHealth -= damage;
+        currentHealth = Mathf.Clamp(currentHealth, 0f, maxHealth);
+
+        if (healthBar != null)
+            healthBar.SetHealth(currentHealth);
 
         animator.SetTrigger("Hurt");
 
         rb.linearVelocity = new Vector2(attackerDirection * knockback, rb.linearVelocity.y);
 
         StartCoroutine(HurtLock());
+
+        if (currentHealth <= 0f)
+        {
+            Die();
+        }
     }
 
     IEnumerator HurtLock()
@@ -140,5 +162,16 @@ public class Player : MonoBehaviour
         isHurt = true;
         yield return new WaitForSeconds(hurtLockDuration);
         isHurt = false;
+    }
+
+    private void Die()
+    {
+        isDead = true;
+        isHurt = true; // khóa mọi hành động khác
+
+        rb.linearVelocity = Vector2.zero;
+        animator.SetTrigger("Die");
+
+        // TODO: xử lý thêm khi chết, ví dụ: disable collider, load lại scene, hiện màn hình Game Over...
     }
 }
