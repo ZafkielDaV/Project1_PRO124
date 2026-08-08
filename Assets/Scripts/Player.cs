@@ -22,7 +22,7 @@ public class Player : MonoBehaviour
 
     [Header("Death")]
     public float deathAnimDuration = 0.5f;   // thời lượng animation Die (khớp 12 sprite @ 24fps)
-    public float deathTotalDuration = 5f;    // tổng thời gian đóng băng trước khi xử lý bước tiếp theo (vd: load lại scene)
+    public float deathTotalDuration = 0f;    // tổng thời gian đóng băng trước khi xử lý bước tiếp theo (vd: load lại scene)
 
     private Rigidbody2D rb;
     private bool isGrounded;

@@ -392,8 +392,16 @@ PrefabInstance:
       value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 496007059245409067, guid: af57c03422c746f42bdcc07183931215, type: 3}
+      propertyPath: deathAnimDuration
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 496007059245409067, guid: af57c03422c746f42bdcc07183931215, type: 3}
       propertyPath: groundRayDistance
       value: 10
+      objectReference: {fileID: 0}
+    - target: {fileID: 496007059245409067, guid: af57c03422c746f42bdcc07183931215, type: 3}
+      propertyPath: deathAnimStateName
+      value: DIe
       objectReference: {fileID: 0}
     - target: {fileID: 496007059245409067, guid: af57c03422c746f42bdcc07183931215, type: 3}
       propertyPath: groundLayer.m_Bits
