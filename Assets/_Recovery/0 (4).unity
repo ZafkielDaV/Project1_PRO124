@@ -194,11 +194,6 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 23468817}
   m_CullTransparentMesh: 1
---- !u!4 &47895450 stripped
-Transform:
-  m_CorrespondingSourceObject: {fileID: 1872037268078709840, guid: af57c03422c746f42bdcc07183931215, type: 3}
-  m_PrefabInstance: {fileID: 832244374}
-  m_PrefabAsset: {fileID: 0}
 --- !u!1 &293817373
 GameObject:
   m_ObjectHideFlags: 0
@@ -382,34 +377,10 @@ PrefabInstance:
     - target: {fileID: 496007059245409067, guid: af57c03422c746f42bdcc07183931215, type: 3}
       propertyPath: groundCheck
       value: 
-      objectReference: {fileID: 47895450}
+      objectReference: {fileID: 1669694121}
     - target: {fileID: 496007059245409067, guid: af57c03422c746f42bdcc07183931215, type: 3}
       propertyPath: attackDamage
       value: 10
-      objectReference: {fileID: 0}
-    - target: {fileID: 496007059245409067, guid: af57c03422c746f42bdcc07183931215, type: 3}
-      propertyPath: snapToGround
-      value: 1
-      objectReference: {fileID: 0}
-    - target: {fileID: 496007059245409067, guid: af57c03422c746f42bdcc07183931215, type: 3}
-      propertyPath: groundRayDistance
-      value: 10
-      objectReference: {fileID: 0}
-    - target: {fileID: 496007059245409067, guid: af57c03422c746f42bdcc07183931215, type: 3}
-      propertyPath: groundLayer.m_Bits
-      value: 1
-      objectReference: {fileID: 0}
-    - target: {fileID: 651078194537915973, guid: af57c03422c746f42bdcc07183931215, type: 3}
-      propertyPath: m_IsTrigger
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 1872037268078709840, guid: af57c03422c746f42bdcc07183931215, type: 3}
-      propertyPath: m_LocalPosition.x
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 1872037268078709840, guid: af57c03422c746f42bdcc07183931215, type: 3}
-      propertyPath: m_LocalPosition.y
-      value: -0.7
       objectReference: {fileID: 0}
     - target: {fileID: 5180166934012580499, guid: af57c03422c746f42bdcc07183931215, type: 3}
       propertyPath: m_Name
@@ -417,11 +388,11 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 5464058266367807522, guid: af57c03422c746f42bdcc07183931215, type: 3}
       propertyPath: m_LocalPosition.x
-      value: 3.58
+      value: 3.54
       objectReference: {fileID: 0}
     - target: {fileID: 5464058266367807522, guid: af57c03422c746f42bdcc07183931215, type: 3}
       propertyPath: m_LocalPosition.y
-      value: 2.35
+      value: -0.28
       objectReference: {fileID: 0}
     - target: {fileID: 5464058266367807522, guid: af57c03422c746f42bdcc07183931215, type: 3}
       propertyPath: m_LocalPosition.z
@@ -622,7 +593,7 @@ GameObject:
   - component: {fileID: 1241649955}
   m_Layer: 0
   m_Name: Grid
-  m_TagString: Ground
+  m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0

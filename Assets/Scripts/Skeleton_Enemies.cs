@@ -21,10 +21,23 @@ public class Enemy : MonoBehaviour
     public LayerMask playerLayer;
     public float loseSightExtraRange = 2f;
 
+    [Header("Player Detection - Behind")]
+    public float behindDetectRange = 3f; // tầm raycast phía sau lưng (ngắn hơn phía trước vì enemy không nhìn thấy, coi như "nghe/cảm nhận")
+
+    [Header("Aggro On Hit")]
+    public float hitAggroDuration = 3f; // trong khoảng thời gian này, enemy sẽ đuổi theo player dù raycast không thấy
+    private float hitAggroTimer = 0f;
+
     [Header("Ground / Physics")]
     public LayerMask groundLayer;
     public Transform groundCheck;
     public float groundCheckRadius = 0.2f;
+
+    [Header("Ground Snap (Kinematic)")]
+    public bool snapToGround = true;
+    public string groundTag = "Ground";
+    public float groundRayDistance = 1f;
+    public float groundSnapSpeed = 15f; // tốc độ nội suy về mặt đất (0 = snap tức thì)
 
     [Header("Knockback")]
     public float knockbackDuration = 0.2f; // thời gian AI bị khóa sau khi trúng đòn
@@ -96,7 +109,14 @@ public class Enemy : MonoBehaviour
             return;
         }
 
-        bool playerDetected = DetectPlayerByRaycast();
+        bool playerDetected = DetectPlayerByRaycast() || DetectPlayerBehind();
+
+        // Nếu vừa bị player đánh trúng gần đây -> ép trạng thái "phát hiện" dù raycast không thấy
+        if (hitAggroTimer > 0f)
+        {
+            hitAggroTimer -= Time.deltaTime;
+            playerDetected = true;
+        }
 
         if (playerDetected)
         {
@@ -139,6 +159,9 @@ public class Enemy : MonoBehaviour
         }
 
         UpdateAnimator();
+
+        if (snapToGround)
+            SnapToGround();
     }
 
     // ---------------- ATTACK PLAYER ----------------
@@ -175,11 +198,14 @@ public class Enemy : MonoBehaviour
 
     // ---------------- KNOCKBACK ----------------
 
-
     public void ApplyKnockback(float direction, float force, float upForce = 4f)
     {
         isKnockedBack = true;
         knockbackTimer = knockbackDuration;
+
+        // Bị player đánh trúng -> ngay lập tức chuyển sang trạng thái đuổi theo
+        isChasing = true;
+        hitAggroTimer = hitAggroDuration;
 
         if (animator != null)
             animator.SetTrigger("Hurt");
@@ -306,6 +332,53 @@ public class Enemy : MonoBehaviour
         return false;
     }
 
+    // Raycast ngược hướng mặt đang quay, để phát hiện player tiếp cận từ phía sau lưng
+    bool DetectPlayerBehind()
+    {
+        if (player == null) return false;
+
+        Vector2 origin = transform.position;
+        float dir = facingRight ? -1f : 1f; // ngược hướng facing
+
+        RaycastHit2D hit = Physics2D.Raycast(origin, new Vector2(dir, 0f), behindDetectRange, obstacleLayer | playerLayer);
+
+        if (hit.collider != null)
+        {
+            if (((1 << hit.collider.gameObject.layer) & playerLayer) != 0)
+                return true;
+        }
+
+        return false;
+    }
+
+    // ---------------- GROUND SNAP (KINEMATIC) ----------------
+
+    // Bắn raycast xuống chân, tìm object có tag Ground rồi kéo enemy sát mặt đất.
+    // Cần thiết vì Rigidbody2D dạng Kinematic không tự rơi/dính đất theo gravity của Unity.
+    void SnapToGround()
+    {
+        if (rb == null || rb.bodyType != RigidbodyType2D.Kinematic) return;
+
+        Vector2 origin = groundCheck != null ? (Vector2)groundCheck.position : (Vector2)transform.position;
+
+        RaycastHit2D hit = Physics2D.Raycast(origin, Vector2.down, groundRayDistance, groundLayer);
+
+        if (hit.collider != null && hit.collider.CompareTag(groundTag))
+        {
+            // Khoảng lệch giữa groundCheck (chân) và điểm chạm mặt đất
+            float delta = hit.point.y - origin.y;
+
+            if (Mathf.Abs(delta) > 0.001f)
+            {
+                float step = groundSnapSpeed <= 0f
+                    ? delta
+                    : Mathf.Clamp(delta, -groundSnapSpeed * Time.deltaTime, groundSnapSpeed * Time.deltaTime);
+
+                rb.MovePosition(new Vector2(rb.position.x, rb.position.y + step));
+            }
+        }
+    }
+
     // ---------------- FLIP ----------------
 
     void Flip()
@@ -341,7 +414,18 @@ public class Enemy : MonoBehaviour
         Vector3 origin = transform.position;
         Gizmos.DrawLine(origin, origin + new Vector3(dir * detectRange, 0f, 0f));
 
+        // Raycast phía sau
+        Gizmos.color = new Color(1f, 0.5f, 0f); // cam
+        Vector3 behindOrigin = transform.position;
+        float behindDir = facingRight ? -1f : 1f;
+        Gizmos.DrawLine(behindOrigin, behindOrigin + new Vector3(behindDir * behindDetectRange, 0f, 0f));
+
         Gizmos.color = Color.yellow;
         Gizmos.DrawWireSphere(transform.position, attackRange);
+
+        // Raycast xuống đất
+        Gizmos.color = Color.green;
+        Vector3 groundOrigin = groundCheck != null ? groundCheck.position : transform.position;
+        Gizmos.DrawLine(groundOrigin, groundOrigin + Vector3.down * groundRayDistance);
     }
 }
