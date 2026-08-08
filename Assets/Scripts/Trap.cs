@@ -55,25 +55,50 @@ public class Trap : MonoBehaviour
     {
         Vector2 playerPos = playerCollider.transform.position;
 
-        // Quét cả xuống dưới lẫn lên trên, chọn điểm chạm gần player nhất
-        RaycastHit2D hitDown = Physics2D.Raycast(playerPos, Vector2.down, teleportRayDistance, groundLayer);
-        RaycastHit2D hitUp = Physics2D.Raycast(playerPos, Vector2.up, teleportRayDistance, groundLayer);
+        // Ưu tiên quét 2 bên trái/phải trước
+        RaycastHit2D hitLeft = Physics2D.Raycast(playerPos, Vector2.left, teleportRayDistance, groundLayer);
+        RaycastHit2D hitRight = Physics2D.Raycast(playerPos, Vector2.right, teleportRayDistance, groundLayer);
 
         RaycastHit2D bestHit = default;
         bool foundGround = false;
+        bool horizontalHit = false;
 
-        if (hitDown.collider != null && hitDown.collider.CompareTag(groundTag))
+        if (hitLeft.collider != null && hitLeft.collider.CompareTag(groundTag))
         {
-            bestHit = hitDown;
+            bestHit = hitLeft;
             foundGround = true;
+            horizontalHit = true;
         }
 
-        if (hitUp.collider != null && hitUp.collider.CompareTag(groundTag))
+        if (hitRight.collider != null && hitRight.collider.CompareTag(groundTag))
         {
-            if (!foundGround || hitUp.distance < bestHit.distance)
+            if (!foundGround || hitRight.distance < bestHit.distance)
             {
-                bestHit = hitUp;
+                bestHit = hitRight;
                 foundGround = true;
+                horizontalHit = true;
+            }
+        }
+
+        // Chỉ quét lên/xuống nếu 2 bên trái/phải không tìm thấy đất
+        if (!foundGround)
+        {
+            RaycastHit2D hitDown = Physics2D.Raycast(playerPos, Vector2.down, teleportRayDistance, groundLayer);
+            RaycastHit2D hitUp = Physics2D.Raycast(playerPos, Vector2.up, teleportRayDistance, groundLayer);
+
+            if (hitDown.collider != null && hitDown.collider.CompareTag(groundTag))
+            {
+                bestHit = hitDown;
+                foundGround = true;
+            }
+
+            if (hitUp.collider != null && hitUp.collider.CompareTag(groundTag))
+            {
+                if (!foundGround || hitUp.distance < bestHit.distance)
+                {
+                    bestHit = hitUp;
+                    foundGround = true;
+                }
             }
         }
 
@@ -83,9 +108,20 @@ public class Trap : MonoBehaviour
             return;
         }
 
-        // Đứng phía trên điểm chạm một chút (nếu quét xuống) hoặc phía dưới một chút (nếu quét lên) để không lún vào tile
-        float direction = (bestHit.point.y <= playerPos.y) ? 1f : -1f;
-        Vector2 standPosition = new Vector2(playerPos.x, bestHit.point.y + direction * groundStandOffset);
+        Vector2 standPosition;
+
+        if (horizontalHit)
+        {
+            // Đứng cách mặt tường một chút theo phương ngang, giữ nguyên độ cao hiện tại
+            float dirX = (bestHit.point.x <= playerPos.x) ? 1f : -1f;
+            standPosition = new Vector2(bestHit.point.x + dirX * groundStandOffset, playerPos.y);
+        }
+        else
+        {
+            // Đứng phía trên điểm chạm một chút (nếu quét xuống) hoặc phía dưới một chút (nếu quét lên) để không lún vào tile
+            float dirY = (bestHit.point.y <= playerPos.y) ? 1f : -1f;
+            standPosition = new Vector2(playerPos.x, bestHit.point.y + dirY * groundStandOffset);
+        }
 
         Rigidbody2D playerRb = playerCollider.attachedRigidbody;
         if (playerRb != null)
