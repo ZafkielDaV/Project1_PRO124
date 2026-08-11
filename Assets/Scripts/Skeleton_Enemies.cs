@@ -1,7 +1,7 @@
 using UnityEngine;
 using System.Collections;
 
-public class Enemy : MonoBehaviour, IDamageable
+public class EnemySkeleton : MonoBehaviour, IDamageable
 {
     [Header("Movement")]
     public float moveSpeed = 2f;
