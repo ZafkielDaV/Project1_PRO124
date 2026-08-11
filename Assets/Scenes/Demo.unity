@@ -463,7 +463,7 @@ PrefabInstance:
       objectReference: {fileID: 47895450}
     - target: {fileID: 496007059245409067, guid: af57c03422c746f42bdcc07183931215, type: 3}
       propertyPath: attackDamage
-      value: 10
+      value: 25
       objectReference: {fileID: 0}
     - target: {fileID: 496007059245409067, guid: af57c03422c746f42bdcc07183931215, type: 3}
       propertyPath: snapToGround
@@ -503,7 +503,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 5180166934012580499, guid: af57c03422c746f42bdcc07183931215, type: 3}
       propertyPath: m_IsActive
-      value: 1
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 5464058266367807522, guid: af57c03422c746f42bdcc07183931215, type: 3}
       propertyPath: m_LocalPosition.x
@@ -750,9 +750,9 @@ MonoBehaviour:
     m_Bits: 8
   behindDetectRange: 2
   hitAggroDuration: 3
-  attackRange: 1
-  attackCooldown: 1.5
-  attackDamage: 1
+  attackRange: 1.5
+  attackCooldown: 1
+  attackDamage: 10
   attackKnockbackForce: 6
   attackWindup: 0.2
   attackHitBox: {fileID: 1858700734}
@@ -2498,12 +2498,9 @@ MonoBehaviour:
   m_GameObject: {fileID: 1858700734}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 493f3fcae28fe154899980a6eee97f79, type: 3}
+  m_Script: {fileID: 11500000, guid: c4868fbd315d4734b98da5839fcf7ac3, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::SlimeHitBox
-  damage: 1
-  knockbackForce: 5
-  attackFacingRight: 1
+  m_EditorClassIdentifier: Assembly-CSharp::EnemyHitBox
 --- !u!1 &1909119868
 GameObject:
   m_ObjectHideFlags: 0

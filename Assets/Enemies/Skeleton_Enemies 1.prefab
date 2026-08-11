@@ -236,13 +236,21 @@ MonoBehaviour:
   groundTag: Ground
   groundRayDistance: 10
   groundSnapSpeed: 15
+  avoidFallingOffEdge: 1
+  edgeCheckOffset: 0.5
+  edgeCheckDistance: 1
   knockbackDuration: 0.2
+  bodyCollisionRadius: 0.3
+  wallCheckSkin: 0.05
   attackRange: 1.5
   attackCooldown: 1.5
-  attackDamage: 10
+  attackDamage: 25
   attackKnockbackForce: 6
   attackWindup: 0.2
   attackHitBox: {fileID: 5399295043415388269}
+  maxHealth: 30
+  deathAnimStateName: Die
+  deathAnimDuration: 1
 --- !u!50 &2216471108298205782
 Rigidbody2D:
   serializedVersion: 5
