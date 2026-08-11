@@ -10,12 +10,15 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 586ad40bdfd8cab488dddd773daac8e4, type: 3}
-  m_Name: Dialogue_Character1
+  m_Name: Dialogue_Character4
   m_EditorClassIdentifier: Assembly-CSharp::DialogueData
   lines:
   - speakerName: Ferio
-    content: "C\xF3 g\xEC \u0111\xF3 k\xEC l\u1EA1 \u1EDF h\u01B0\u1EDBng kia\n"
+    content: "L\xE0 ti\u1EBFng qu\xE1i v\u1EADt!"
+    speakerPortrait: {fileID: 0}
+  - speakerName: Ferio
+    content: "T\u1EA1i sao l\u1EA1i c\xF3 qu\xE1i v\u1EADt \u1EDF l\xE0ng?"
     speakerPortrait: {fileID: 0}
   - speakerName: 
-    content: "Nh\u1EA5n n\xFAt [A] [D] \u0111\u1EC3 \u0111i chuy\u1EC3n\n"
+    content: "Nh\u1EA5n ph\xEDm [J] \u0111\u1EC3 t\u1EA5n c\xF4ng qu\xE1i v\u1EADt."
     speakerPortrait: {fileID: 0}

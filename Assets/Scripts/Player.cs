@@ -56,6 +56,22 @@ public class Player : MonoBehaviour
     {
         if (isDead) return; // không cho làm gì nữa nếu đã chết
 
+        // ---------------- DIALOGUE LOCK ----------------
+        if (DialogueManager.IsDialogueActive)
+        {
+            // Đứng yên hoàn toàn trong lúc dialogue đang mở
+            rb.linearVelocity = new Vector2(0f, rb.linearVelocity.y);
+            animator.SetFloat("Speed", 0f);
+
+            // Bấm J: đóng dialogue lại, đồng thời KHÔNG cho tấn công trong frame này
+            if (Input.GetKeyDown(KeyCode.J))
+            {
+                DialogueManager.Instance.CloseDialogueUI();
+            }
+
+            return; // chặn toàn bộ input di chuyển/nhảy/tấn công phía dưới khi dialogue còn active
+        }
+
         if (!isAttacking && !isHurt) // chỉ cho di chuyển khi không attack và không đang hurt
         {
             float moveInput = Input.GetAxis("Horizontal");
@@ -183,34 +199,14 @@ public class Player : MonoBehaviour
 
     IEnumerator DeathFreezeSequence()
     {
-        // Cho Animator của Player chạy bằng Unscaled Time để animation "Die"
-        // vẫn tiếp tục phát dù Time.timeScale = 0 (mọi thứ khác sẽ đứng yên)
         animator.updateMode = AnimatorUpdateMode.UnscaledTime;
 
-        // Đóng băng toàn bộ scene: Rigidbody2D (vật lý), enemy, và mọi script
-        // khác dùng Time.deltaTime sẽ tự động dừng lại
         Time.timeScale = 0f;
 
-        // Làm chậm Animator lại để clip Die (vốn dài deathAnimDuration giây,
-        // vd 0.5s @ 12 sprite/24fps) được kéo dãn ra và chạy trọn trong
-        // đúng deathTotalDuration giây (vd 10s) — hiệu ứng slow-motion khi chết
         animator.speed = deathAnimDuration / deathTotalDuration;
 
-        // WaitForSecondsRealtime KHÔNG bị ảnh hưởng bởi Time.timeScale
-        // nên vẫn đếm đúng thời gian thực deathTotalDuration
         yield return new WaitForSecondsRealtime(deathTotalDuration);
 
-        // Dừng hẳn Animator lại đúng lúc này để giữ nguyên sprite cuối cùng
-        // của animation Die (không cho animation loop hay chạy tiếp)
         animator.speed = 0f;
-
-        // KHÔNG trả Time.timeScale về 1 nữa — giữ nguyên 0 vĩnh viễn,
-        // toàn bộ scene (vật lý, enemy, input di chuyển...) đứng im luôn
-        // cho đến khi có hành động khác (ví dụ load lại scene / về menu)
-
-        // TODO: xử lý thêm khi cần, ví dụ:
-        // - Disable collider của Player
-        // - Hiện UI Game Over (UI thường không phụ thuộc timeScale nên vẫn hiện được)
-        // - Nút Restart trong UI đó gọi SceneManager.LoadScene(...) để chơi lại
     }
 }
