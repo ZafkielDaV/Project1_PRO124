@@ -20,16 +20,18 @@ public class AttackHitBox : MonoBehaviour
 
         if (other.CompareTag("Enemy"))
         {
-            Enemy enemy = other.GetComponent<Enemy>();
-            if (enemy != null)
+            // Dùng interface chung thay vì GetComponent<Enemy>() để hitbox này
+            // hoạt động được với mọi loại quái (Enemy, Slime, ...) miễn là implement IDamageable
+            IDamageable damageable = other.GetComponent<IDamageable>();
+            if (damageable != null)
             {
                 float dir = attackFacingRight ? 1f : -1f;
-                enemy.ApplyKnockback(dir, knockbackForce, knockbackUpForce, attackDamage);
+                damageable.ApplyKnockback(dir, knockbackForce, knockbackUpForce, attackDamage);
                 Debug.Log("[HitBox] Đã gọi ApplyKnockback thành công!");
             }
             else
             {
-                Debug.Log("[HitBox] Có tag Enemy nhưng KHÔNG tìm thấy component Enemy.cs trên object!");
+                Debug.Log("[HitBox] Có tag Enemy nhưng KHÔNG tìm thấy component implement IDamageable trên object!");
             }
         }
     }

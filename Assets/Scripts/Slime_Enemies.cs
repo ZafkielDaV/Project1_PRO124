@@ -1,74 +1,72 @@
 using UnityEngine;
 using System.Collections;
 
-public class Enemy : MonoBehaviour, IDamageable
+public class Slime : MonoBehaviour, IDamageable
 {
-    [Header("Movement")]
-    public float moveSpeed = 2f;
-    public float chaseSpeed = 3.5f;
-
-    [Header("Random Wander")]
-    public float minMoveTime = 1f;
-    public float maxMoveTime = 3f;
-    public float minIdleTime = 0.5f;
-    public float maxIdleTime = 2f;
-    public float wanderRange = 4f;
+    [Header("Hop Movement")]
+    public float hopForce = 5f;         // lực nhảy lên (Y) mỗi lần hop - đủ cao để rời hẳn groundCheck
+    public float hopSpeed = 1.5f;       // tốc độ ngang trong lúc hop - slime nhảy tại chỗ nhiều hơn di chuyển xa
+    public float chaseHopForce = 6f;
+    public float chaseHopSpeed = 2.5f;
+    public float minHopInterval = 1.2f; // khoảng nghỉ giữa 2 lần hop khi wander
+    public float maxHopInterval = 2.2f;
+    public float minIdleTime = 0.4f;
+    public float maxIdleTime = 1.2f;
+    public float wanderRange = 3f;
 
     [Header("Player Detection (Raycast)")]
     public Transform player;
-    public float detectRange = 6f;
+    public float detectRange = 4f;
     public LayerMask obstacleLayer;
     public LayerMask playerLayer;
-    public float loseSightExtraRange = 2f;
+    public float loseSightExtraRange = 1f;
 
     [Header("Player Detection - Behind")]
-    public float behindDetectRange = 3f; // tầm raycast phía sau lưng (ngắn hơn phía trước vì enemy không nhìn thấy, coi như "nghe/cảm nhận")
+    public float behindDetectRange = 2f;
 
     [Header("Aggro On Hit")]
-    public float hitAggroDuration = 3f; // trong khoảng thời gian này, enemy sẽ đuổi theo player dù raycast không thấy
+    public float hitAggroDuration = 2.5f;
     private float hitAggroTimer = 0f;
 
     [Header("Ground / Physics")]
     public LayerMask groundLayer;
     public Transform groundCheck;
-    public float groundCheckRadius = 0.2f;
-
-    [Header("Ground Snap (Kinematic)")]
-    public bool snapToGround = true;
-    public string groundTag = "Ground";
-    public float groundRayDistance = 1f;
-    public float groundSnapSpeed = 15f; // tốc độ nội suy về mặt đất (0 = snap tức thì)
+    public float groundCheckRadius = 0.1f;
 
     [Header("Edge Detection (Left/Right Ground Check)")]
-    public bool avoidFallingOffEdge = true; // bật để enemy không đi lố khỏi rìa platform
-    public float edgeCheckOffset = 0.5f;    // khoảng cách ngang từ groundCheck ra mỗi bên trái/phải
-    public float edgeCheckDistance = 1f;    // độ dài raycast xuống để kiểm tra có đất hay không
+    public bool avoidFallingOffEdge = true;
+    public float edgeCheckOffset = 0.3f;
+    public float edgeCheckDistance = 0.6f;
 
     [Header("Knockback")]
-    public float knockbackDuration = 0.2f; // thời gian AI bị khóa sau khi trúng đòn
+    public float knockbackDuration = 0.15f;
 
     [Header("Knockback - Wall Collision")]
-    public float bodyCollisionRadius = 0.3f; // bán kính ước lượng thân enemy, dùng để CircleCast tránh xuyên tường khi bị knockback
-    public float wallCheckSkin = 0.05f;      // khoảng đệm nhỏ để không dính sát/kẹt vào tường
+    public float bodyCollisionRadius = 0.25f;
+    public float wallCheckSkin = 0.05f;
 
-    [Header("Attack Player")]
-    public float attackRange = 1f;
-    public float attackCooldown = 1.5f;
+    [Header("Attack Player (Body Bump)")]
+    public float attackRange = 0.6f;    // slime tấn công bằng cách nảy vào người chơi khi ở gần
+    public float attackCooldown = 1.2f;
     public float attackDamage = 1f;
-    public float attackKnockbackForce = 6f;
-    public float attackWindup = 0.2f;
-    public GameObject attackHitBox; // GameObject hitbox riêng của Enemy
+    public float attackKnockbackForce = 4f;
+    public float attackHopForce = 6f;   // hop mạnh hơn khi lao vào tấn công
+    public GameObject attackHitBox;
 
     [Header("Health")]
-    public float maxHealth = 30f;
+    public float maxHealth = 10f;       // slime thường máu ít hơn enemy thường
     private float currentHealth;
     private bool isDead = false;
 
-    [Header("Death")]
-    public string deathAnimStateName = "Die"; // tên state/clip Die trong Animator
-    public float deathAnimDuration = 1f;      // enemy sẽ biến mất sau đúng khoảng thời gian này
+    [Header("Death / Split")]
+    public string deathAnimStateName = "Die";
+    public float deathAnimDuration = 0.6f;
+    public bool splitOnDeath = false;       // slime nhỏ có thể tách đôi khi chết
+    public GameObject miniSlimePrefab;
+    public int splitCount = 2;
+    public float splitMinHealthToSplit = 8f; // chỉ tách nếu máu tối đa đủ lớn (tránh mini slime tách vô hạn)
 
-    private EnemyHitBox hitBoxScript;
+    private SlimeHitBox hitBoxScript;
     private Rigidbody2D rb;
     private Animator animator;
     private bool facingRight = true;
@@ -78,6 +76,8 @@ public class Enemy : MonoBehaviour, IDamageable
     private float moveDirection = 1f;
     private float stateTimer = 0f;
     private bool isIdling = false;
+    private bool isAirborne = false; // đang trong pha nhảy (chưa chạm đất lại)
+    private bool hasLeftGround = false; // đảm bảo slime đã thực sự rời mặt đất trước khi được tính là "đã tiếp đất" lại
 
     private bool isChasing = false;
 
@@ -86,6 +86,8 @@ public class Enemy : MonoBehaviour, IDamageable
 
     private bool isAttacking = false;
     private float lastAttackTime = -999f;
+
+    private Coroutine knockbackRoutine;
 
     void Start()
     {
@@ -97,11 +99,12 @@ public class Enemy : MonoBehaviour, IDamageable
 
         currentHealth = maxHealth;
 
-        PickNewIdleOrMove();
+        PickNewIdleOrHop();
+
         if (attackHitBox != null)
         {
             attackHitBox.SetActive(false);
-            hitBoxScript = attackHitBox.GetComponent<EnemyHitBox>();
+            hitBoxScript = attackHitBox.GetComponent<SlimeHitBox>();
         }
     }
 
@@ -112,7 +115,19 @@ public class Enemy : MonoBehaviour, IDamageable
         isGrounded = groundCheck != null &&
             Physics2D.OverlapCircle(groundCheck.position, groundCheckRadius, groundLayer);
 
-        // Trong lúc bị knockback: bỏ qua toàn bộ AI, chỉ đếm ngược thời gian
+        // Track việc slime đã thực sự rời mặt đất (isGrounded == false ít nhất 1 frame) trong pha nhảy này chưa.
+        // Nếu không có bước này, groundCheck có thể vẫn overlap mặt đất suốt cú hop yếu -> isAirborne
+        // bị reset false ngay khi velocity.y vừa chuyển sang <= 0 (tức lúc lên đỉnh, CHƯA rơi xuống chạm đất),
+        // khiến slime nhảy tiếp liên tục giữa không trung mà chưa từng chạm đất thật sự.
+        if (!isGrounded)
+            hasLeftGround = true;
+
+        if (isGrounded && hasLeftGround && rb.linearVelocity.y <= 0f)
+        {
+            isAirborne = false;
+            hasLeftGround = false;
+        }
+
         if (isKnockedBack)
         {
             knockbackTimer -= Time.deltaTime;
@@ -120,20 +135,17 @@ public class Enemy : MonoBehaviour, IDamageable
                 isKnockedBack = false;
 
             UpdateAnimator();
-            return; // không chạy Wander/Chase/Detect trong lúc này
+            return;
         }
 
-        // Trong lúc đang tự ra đòn: đứng yên, không chạy AI khác
         if (isAttacking)
         {
-            rb.linearVelocity = new Vector2(0f, rb.linearVelocity.y);
             UpdateAnimator();
             return;
         }
 
         bool playerDetected = DetectPlayerByRaycast() || DetectPlayerBehind();
 
-        // Nếu vừa bị player đánh trúng gần đây -> ép trạng thái "phát hiện" dù raycast không thấy
         if (hitAggroTimer > 0f)
         {
             hitAggroTimer -= Time.deltaTime;
@@ -147,7 +159,7 @@ public class Enemy : MonoBehaviour, IDamageable
         else if (isChasing)
         {
             isChasing = false;
-            PickNewIdleOrMove();
+            PickNewIdleOrHop();
         }
 
         if (isChasing)
@@ -156,23 +168,21 @@ public class Enemy : MonoBehaviour, IDamageable
 
             if (distToPlayer <= attackRange)
             {
-                // Đã vào tầm đánh -> luôn đứng yên tại đây, không lao thêm vào Player
-                rb.linearVelocity = new Vector2(0f, rb.linearVelocity.y);
-
-                // Quay mặt đúng hướng Player dù đang đứng yên chờ
                 float dir = player.position.x - transform.position.x >= 0f ? 1f : -1f;
                 if ((dir > 0 && !facingRight) || (dir < 0 && facingRight))
                     Flip();
 
-                // Chỉ ra đòn khi hết cooldown, còn không thì tiếp tục đứng yên chờ
-                if (Time.time - lastAttackTime >= attackCooldown)
+                if (isGrounded && !isAirborne)
+                    rb.linearVelocity = new Vector2(0f, rb.linearVelocity.y);
+
+                if (Time.time - lastAttackTime >= attackCooldown && isGrounded)
                 {
                     StartCoroutine(DoAttackPlayer());
                 }
             }
             else
             {
-                ChasePlayer();
+                ChaseHop();
             }
         }
         else
@@ -181,36 +191,37 @@ public class Enemy : MonoBehaviour, IDamageable
         }
 
         UpdateAnimator();
-
-        if (snapToGround)
-            SnapToGround();
     }
 
-    // ---------------- ATTACK PLAYER ----------------
+    // ---------------- ATTACK PLAYER (lao vào bằng cú nhảy mạnh) ----------------
 
     IEnumerator DoAttackPlayer()
     {
         isAttacking = true;
         lastAttackTime = Time.time;
 
-        rb.linearVelocity = new Vector2(0f, rb.linearVelocity.y);
-
         if (animator != null)
             animator.SetTrigger("Attack");
 
-        // Chờ "vung tay" xong rồi mới bật hitbox thật sự gây damage
-        yield return new WaitForSeconds(attackWindup);
+        float dir = facingRight ? 1f : -1f;
+        rb.linearVelocity = new Vector2(dir * chaseHopSpeed, attackHopForce);
+        isAirborne = true;
+        hasLeftGround = false;
 
         if (attackHitBox != null)
         {
             attackHitBox.SetActive(true);
-
             if (hitBoxScript != null)
                 hitBoxScript.Setup(facingRight, attackDamage, attackKnockbackForce);
         }
 
-        // Hitbox chỉ bật trong khoảng thời gian ngắn (khớp lúc vũ khí thật sự vung tới)
-        yield return new WaitForSeconds(0.1f);
+        // Hitbox bật trong lúc slime đang bay tới, tắt sau khi tiếp đất hoặc hết thời gian tối đa
+        float safety = 0f;
+        while (!isGrounded && safety < 1.5f)
+        {
+            safety += Time.deltaTime;
+            yield return null;
+        }
 
         if (attackHitBox != null)
             attackHitBox.SetActive(false);
@@ -245,24 +256,40 @@ public class Enemy : MonoBehaviour, IDamageable
         if (attackHitBox != null)
             attackHitBox.SetActive(false);
 
-        // Tắt collider để không va chạm/nhận thêm damage sau khi chết
         Collider2D col = GetComponent<Collider2D>();
         if (col != null) col.enabled = false;
 
-        // Huỷ mọi trigger Hurt/Attack đang chờ để chúng không đè lên animation Die
         if (animator != null)
         {
             animator.ResetTrigger("Hurt");
             animator.ResetTrigger("Attack");
         }
 
+        if (splitOnDeath && miniSlimePrefab != null && maxHealth >= splitMinHealthToSplit)
+            SpawnMiniSlimes();
+
         PlayDeathAnimation();
 
         Destroy(gameObject, deathAnimDuration);
     }
 
-    // Chỉnh tốc độ phát của animation Die để dù clip gốc dài bao nhiêu (4 sprite hay khác)
-    // thì cũng chạy vừa khít trong đúng deathAnimDuration giây rồi enemy biến mất.
+    private void SpawnMiniSlimes()
+    {
+        for (int i = 0; i < splitCount; i++)
+        {
+            float offsetX = (i == 0) ? -0.3f : 0.3f;
+            Vector3 spawnPos = transform.position + new Vector3(offsetX, 0.1f, 0f);
+            GameObject mini = Instantiate(miniSlimePrefab, spawnPos, Quaternion.identity);
+
+            Rigidbody2D miniRb = mini.GetComponent<Rigidbody2D>();
+            if (miniRb != null)
+            {
+                float dir = (i == 0) ? -1f : 1f;
+                miniRb.linearVelocity = new Vector2(dir * hopSpeed, hopForce * 0.75f);
+            }
+        }
+    }
+
     private void PlayDeathAnimation()
     {
         if (animator == null) return;
@@ -291,21 +318,18 @@ public class Enemy : MonoBehaviour, IDamageable
 
     // ---------------- KNOCKBACK ----------------
 
-    public void ApplyKnockback(float direction, float force, float upForce = 4f, float damage = 0f)
+    public void ApplyKnockback(float direction, float force, float upForce = 3f, float damage = 0f)
     {
         if (isDead) return;
 
-        // Trừ máu trước để biết cú đánh này có giết chết enemy hay không,
-        // tránh việc trigger "Hurt" đè lên animation "Die" ngay sau đó
         if (damage > 0f)
             TakeDamage(damage);
 
-        if (isDead) return; // chết rồi thì không chạy knockback/hurt nữa, Die() đã xử lý xong
+        if (isDead) return;
 
         isKnockedBack = true;
         knockbackTimer = knockbackDuration;
 
-        // Bị player đánh trúng -> ngay lập tức chuyển sang trạng thái đuổi theo
         isChasing = true;
         hitAggroTimer = hitAggroDuration;
 
@@ -315,8 +339,6 @@ public class Enemy : MonoBehaviour, IDamageable
         StopKnockbackRoutineIfRunning();
         knockbackRoutine = StartCoroutine(KnockbackRoutine(direction, force, upForce));
     }
-
-    private Coroutine knockbackRoutine;
 
     private void StopKnockbackRoutineIfRunning()
     {
@@ -330,20 +352,16 @@ public class Enemy : MonoBehaviour, IDamageable
         Vector2 startPos = rb.position;
         float horizontalDistance = direction * force * knockbackDuration;
 
-        // Vị trí X xa nhất mà knockback được phép đẩy tới, sẽ bị "cắt bớt" ngay khi chạm tường
         float clampedTargetX = startPos.x + horizontalDistance;
 
         while (elapsed < knockbackDuration)
         {
             elapsed += Time.deltaTime;
-
-            // Clamp để không bao giờ vượt quá 1 -> tránh sin() ra số âm ở frame cuối
             float t = Mathf.Clamp01(elapsed / knockbackDuration);
 
             float x = startPos.x + horizontalDistance * t;
             float y = startPos.y + (upForce * knockbackDuration * 0.5f) * Mathf.Sin(t * Mathf.PI);
 
-            // ---- Chặn xuyên tường ----
             Vector2 currentPos = rb.position;
             float moveX = x - currentPos.x;
 
@@ -356,11 +374,9 @@ public class Enemy : MonoBehaviour, IDamageable
 
                 if (wallHit.collider != null)
                 {
-                    // Có tường chắn ngang đường -> chỉ đi tới sát mặt tường, không xuyên qua
                     float allowedDist = Mathf.Max(0f, wallHit.distance - wallCheckSkin);
                     x = currentPos.x + castDir * allowedDist;
 
-                    // Ghim lại điểm dừng để các frame sau không cố đẩy tiếp qua tường
                     clampedTargetX = x;
                     horizontalDistance = clampedTargetX - startPos.x;
                 }
@@ -371,8 +387,6 @@ public class Enemy : MonoBehaviour, IDamageable
             yield return null;
         }
 
-        // Ép về đúng vị trí Y ban đầu để chắc chắn không bị lệch/tụt đất,
-        // và dùng X đã bị clamp (nếu có chạm tường) thay vì X gốc để tránh xuyên tường ở bước cuối
         float finalX = startPos.x + horizontalDistance;
         rb.MovePosition(new Vector2(finalX, startPos.y));
 
@@ -380,7 +394,7 @@ public class Enemy : MonoBehaviour, IDamageable
         knockbackRoutine = null;
     }
 
-    // ---------------- WANDER ----------------
+    // ---------------- WANDER (nhảy ngẫu nhiên) ----------------
 
     void Wander()
     {
@@ -388,9 +402,11 @@ public class Enemy : MonoBehaviour, IDamageable
 
         if (isIdling)
         {
-            rb.linearVelocity = new Vector2(0f, rb.linearVelocity.y);
+            // Đứng yên chờ giữa các lần nhảy, không tác động lực ngang
+            if (isGrounded)
+                rb.linearVelocity = new Vector2(0f, rb.linearVelocity.y);
         }
-        else
+        else if (isGrounded && !isAirborne)
         {
             float distFromSpawn = transform.position.x - spawnPosition.x;
             if (distFromSpawn > wanderRange && moveDirection > 0f)
@@ -398,7 +414,6 @@ public class Enemy : MonoBehaviour, IDamageable
             else if (distFromSpawn < -wanderRange && moveDirection < 0f)
                 moveDirection = 1f;
 
-            // Kiểm tra rìa platform: nếu phía trước theo hướng di chuyển không còn đất -> quay đầu ngay, không đi tiếp
             if (avoidFallingOffEdge)
             {
                 if (moveDirection > 0f && !IsGroundOnRight())
@@ -407,43 +422,41 @@ public class Enemy : MonoBehaviour, IDamageable
                     moveDirection = 1f;
             }
 
-            rb.linearVelocity = new Vector2(moveDirection * moveSpeed, rb.linearVelocity.y);
-
             if ((moveDirection > 0 && !facingRight) || (moveDirection < 0 && facingRight))
                 Flip();
-        }
 
-        if (stateTimer <= 0f)
-        {
-            PickNewIdleOrMove();
-        }
-    }
+            // Thực hiện 1 cú hop rồi chuyển sang idle chờ lần sau
+            rb.linearVelocity = new Vector2(moveDirection * hopSpeed, hopForce);
+            isAirborne = true;
+            hasLeftGround = false;
 
-    void PickNewIdleOrMove()
-    {
-        isIdling = !isIdling;
-
-        if (isIdling)
-        {
+            isIdling = true;
             stateTimer = Random.Range(minIdleTime, maxIdleTime);
         }
-        else
+
+        if (stateTimer <= 0f && isIdling)
         {
-            stateTimer = Random.Range(minMoveTime, maxMoveTime);
-            moveDirection = Random.value > 0.5f ? 1f : -1f;
+            PickNewIdleOrHop();
         }
     }
 
-    // ---------------- CHASE ----------------
+    void PickNewIdleOrHop()
+    {
+        isIdling = true;
+        stateTimer = Random.Range(minHopInterval, maxHopInterval);
+        moveDirection = Random.value > 0.5f ? 1f : -1f;
+    }
 
-    void ChasePlayer()
+    // ---------------- CHASE (nhảy liên tục về phía player) ----------------
+
+    void ChaseHop()
     {
         if (player == null) return;
+        if (!isGrounded || isAirborne) return; // chờ tiếp đất mới nhảy tiếp
 
         float dirX = player.position.x - transform.position.x;
         float dir = Mathf.Sign(dirX);
 
-        // Nếu phía trước theo hướng đuổi không còn đất -> dừng lại tại rìa thay vì rơi xuống
         if (avoidFallingOffEdge)
         {
             bool groundAhead = dir > 0f ? IsGroundOnRight() : IsGroundOnLeft();
@@ -458,10 +471,12 @@ public class Enemy : MonoBehaviour, IDamageable
             }
         }
 
-        rb.linearVelocity = new Vector2(dir * chaseSpeed, rb.linearVelocity.y);
-
         if ((dir > 0 && !facingRight) || (dir < 0 && facingRight))
             Flip();
+
+        rb.linearVelocity = new Vector2(dir * chaseHopSpeed, chaseHopForce);
+        isAirborne = true;
+        hasLeftGround = false;
     }
 
     // ---------------- DETECTION ----------------
@@ -485,13 +500,12 @@ public class Enemy : MonoBehaviour, IDamageable
         return false;
     }
 
-    // Raycast ngược hướng mặt đang quay, để phát hiện player tiếp cận từ phía sau lưng
     bool DetectPlayerBehind()
     {
         if (player == null) return false;
 
         Vector2 origin = transform.position;
-        float dir = facingRight ? -1f : 1f; // ngược hướng facing
+        float dir = facingRight ? -1f : 1f;
 
         RaycastHit2D hit = Physics2D.Raycast(origin, new Vector2(dir, 0f), behindDetectRange, obstacleLayer | playerLayer);
 
@@ -504,37 +518,8 @@ public class Enemy : MonoBehaviour, IDamageable
         return false;
     }
 
-    // ---------------- GROUND SNAP (KINEMATIC) ----------------
-
-    // Bắn raycast xuống chân, tìm object có tag Ground rồi kéo enemy sát mặt đất.
-    // Cần thiết vì Rigidbody2D dạng Kinematic không tự rơi/dính đất theo gravity của Unity.
-    void SnapToGround()
-    {
-        if (rb == null || rb.bodyType != RigidbodyType2D.Kinematic) return;
-
-        Vector2 origin = groundCheck != null ? (Vector2)groundCheck.position : (Vector2)transform.position;
-
-        RaycastHit2D hit = Physics2D.Raycast(origin, Vector2.down, groundRayDistance, groundLayer);
-
-        if (hit.collider != null && hit.collider.CompareTag(groundTag))
-        {
-            // Khoảng lệch giữa groundCheck (chân) và điểm chạm mặt đất
-            float delta = hit.point.y - origin.y;
-
-            if (Mathf.Abs(delta) > 0.001f)
-            {
-                float step = groundSnapSpeed <= 0f
-                    ? delta
-                    : Mathf.Clamp(delta, -groundSnapSpeed * Time.deltaTime, groundSnapSpeed * Time.deltaTime);
-
-                rb.MovePosition(new Vector2(rb.position.x, rb.position.y + step));
-            }
-        }
-    }
-
     // ---------------- EDGE DETECTION (LEFT / RIGHT GROUND CHECK) ----------------
 
-    // Gốc để tính 2 điểm check trái/phải, dựa trên groundCheck (chân) nếu có, fallback về transform.position
     Vector2 GetGroundCheckOrigin()
     {
         return groundCheck != null ? (Vector2)groundCheck.position : (Vector2)transform.position;
@@ -544,16 +529,14 @@ public class Enemy : MonoBehaviour, IDamageable
     {
         Vector2 origin = GetGroundCheckOrigin() + new Vector2(horizontalOffset, 0f);
         RaycastHit2D hit = Physics2D.Raycast(origin, Vector2.down, edgeCheckDistance, groundLayer);
-        return hit.collider != null && hit.collider.CompareTag(groundTag);
+        return hit.collider != null;
     }
 
-    // Có đất ngay bên phải groundCheck hay không (dùng để tránh đi lố khỏi rìa khi di chuyển sang phải)
     bool IsGroundOnRight()
     {
         return CheckGroundAtOffset(edgeCheckOffset);
     }
 
-    // Có đất ngay bên trái groundCheck hay không (dùng để tránh đi lố khỏi rìa khi di chuyển sang trái)
     bool IsGroundOnLeft()
     {
         return CheckGroundAtOffset(-edgeCheckOffset);
@@ -575,9 +558,9 @@ public class Enemy : MonoBehaviour, IDamageable
     {
         if (animator == null) return;
 
-        float speed = Mathf.Abs(rb.linearVelocity.x);
-        animator.SetFloat("Speed", speed);
-        animator.SetBool("isWalking", speed > 0.05f);
+        animator.SetBool("isGrounded", isGrounded);
+        animator.SetFloat("VerticalSpeed", rb.linearVelocity.y);
+        animator.SetBool("isJumping", isAirborne);
     }
 
     private void OnCollisionEnter2D(Collision2D collision)
@@ -594,8 +577,7 @@ public class Enemy : MonoBehaviour, IDamageable
         Vector3 origin = transform.position;
         Gizmos.DrawLine(origin, origin + new Vector3(dir * detectRange, 0f, 0f));
 
-        // Raycast phía sau
-        Gizmos.color = new Color(1f, 0.5f, 0f); // cam
+        Gizmos.color = new Color(1f, 0.5f, 0f);
         Vector3 behindOrigin = transform.position;
         float behindDir = facingRight ? -1f : 1f;
         Gizmos.DrawLine(behindOrigin, behindOrigin + new Vector3(behindDir * behindDetectRange, 0f, 0f));
@@ -603,19 +585,13 @@ public class Enemy : MonoBehaviour, IDamageable
         Gizmos.color = Color.yellow;
         Gizmos.DrawWireSphere(transform.position, attackRange);
 
-        // Raycast xuống đất (giữa chân)
-        Gizmos.color = Color.green;
-        Vector3 groundOrigin = groundCheck != null ? groundCheck.position : transform.position;
-        Gizmos.DrawLine(groundOrigin, groundOrigin + Vector3.down * groundRayDistance);
-
-        // Raycast xuống đất bên trái / phải (edge detection)
         Gizmos.color = Color.cyan;
+        Vector3 groundOrigin = groundCheck != null ? groundCheck.position : transform.position;
         Vector3 rightOrigin = groundOrigin + Vector3.right * edgeCheckOffset;
         Vector3 leftOrigin = groundOrigin + Vector3.left * edgeCheckOffset;
         Gizmos.DrawLine(rightOrigin, rightOrigin + Vector3.down * edgeCheckDistance);
         Gizmos.DrawLine(leftOrigin, leftOrigin + Vector3.down * edgeCheckDistance);
 
-        // Bán kính thân dùng để CircleCast chặn tường khi knockback
         Gizmos.color = Color.magenta;
         Gizmos.DrawWireSphere(transform.position, bodyCollisionRadius);
     }
