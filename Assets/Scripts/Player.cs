@@ -21,6 +21,11 @@ public class Player : MonoBehaviour
     public float currentHealth;
     public HealthBar healthBar;
 
+    [Header("Mana")]
+    public float maxMana = 50f;
+    public float currentMana;
+    public HealthBar manaBar; // tái dùng script HealthBar, hoặc thay bằng script ManaBar riêng nếu có
+
     [Header("Death")]
     public float deathAnimDuration = 0.5f;
     public float deathTotalDuration = 1f;
@@ -56,6 +61,10 @@ public class Player : MonoBehaviour
         currentHealth = maxHealth;
         if (healthBar != null)
             healthBar.SetMaxHealth(maxHealth);
+
+        currentMana = maxMana;
+        if (manaBar != null)
+            manaBar.SetMaxHealth(maxMana);
 
         if (gameOverPanel != null)
             gameOverPanel.SetActive(false);
@@ -165,7 +174,19 @@ public class Player : MonoBehaviour
         isAttacking = false;
     }
 
+    // Chữ ký cũ (giữ tương thích ngược cho AttackHitBox và các nơi khác đang gọi):
+    // chỉ đẩy theo trục ngang, KHÔNG đụng tới vận tốc Y (rơi/nhảy vẫn giữ nguyên).
     public void TakeDamage(float damage, float attackerDirection, float knockback)
+    {
+
+        TakeDamage(damage, new Vector2(attackerDirection, 0f), knockback);
+    }
+
+    // Chữ ký mới: nhận hướng đẩy dạng Vector2.
+    // Trục nào của knockbackDir khác 0 thì trục đó của vận tốc bị ghi đè theo dấu của nó;
+    // trục nào = 0 thì giữ nguyên vận tốc hiện tại (trap chỉ đẩy Y thì X không đổi).
+
+    public void TakeDamage(float damage, Vector2 knockbackDir, float knockback)
     {
         if (isHurt || isAttacking || isDead) return;
 
@@ -177,7 +198,10 @@ public class Player : MonoBehaviour
 
         animator.SetTrigger("Hurt");
 
-        rb.linearVelocity = new Vector2(attackerDirection * knockback, rb.linearVelocity.y);
+        Vector2 newVelocity = rb.linearVelocity;
+        if (knockbackDir.x != 0f) newVelocity.x = Mathf.Sign(knockbackDir.x) * knockback;
+        if (knockbackDir.y != 0f) newVelocity.y = Mathf.Sign(knockbackDir.y) * knockback;
+        rb.linearVelocity = newVelocity;
 
         StartCoroutine(HurtLock());
 
@@ -185,6 +209,30 @@ public class Player : MonoBehaviour
         {
             Die();
         }
+    }
+
+    // Gọi hàm này khi nhặt bình máu / item hồi máu
+    public void Heal(float amount)
+    {
+        if (isDead) return;
+
+        currentHealth += amount;
+        currentHealth = Mathf.Clamp(currentHealth, 0f, maxHealth);
+
+        if (healthBar != null)
+            healthBar.SetHealth(currentHealth);
+    }
+
+    // Gọi hàm này khi nhặt bình mana / item hồi mana
+    public void RestoreMana(float amount)
+    {
+        if (isDead) return;
+
+        currentMana += amount;
+        currentMana = Mathf.Clamp(currentMana, 0f, maxMana);
+
+        if (manaBar != null)
+            manaBar.SetHealth(currentMana);
     }
 
     IEnumerator HurtLock()
@@ -228,7 +276,7 @@ public class Player : MonoBehaviour
 
     // Gắn hàm này vào nút "Restart" trên Game Over UI
     // -> reload scene KHÔNG lấy save point (xóa hẳn save data)
-  
+
 
     public void QuitGame()
     {
