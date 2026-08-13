@@ -54,6 +54,12 @@ public class Player : MonoBehaviour
 
         if (gameOverPanel != null)
             gameOverPanel.SetActive(false);
+        bool shouldUse = GameManager.Instance != null && GameManager.Instance.ShouldUseSavePoint();
+        Debug.Log($"[Player] Start() shouldUseSavePoint={shouldUse}, HasSaveData={PlayerPrefs.GetInt("HasSaveData", 0)}");
+        if (shouldUse)
+        {
+            SavePoint.LoadLastPosition(transform);
+        }
 
         // ---- SỬA: chỉ load vị trí save point nếu GameManager cho phép ----
         if (GameManager.Instance != null && GameManager.Instance.ShouldUseSavePoint())

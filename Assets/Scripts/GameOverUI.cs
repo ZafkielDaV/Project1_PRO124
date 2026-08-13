@@ -22,6 +22,7 @@ public class GameOverUI : MonoBehaviour
 
     public void PlayAgain()
     {
+        Debug.Log("[GameOverUI] PlayAgain() called");
         Time.timeScale = 1f;
 
         if (GameManager.Instance != null)

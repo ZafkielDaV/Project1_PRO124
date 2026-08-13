@@ -69,6 +69,7 @@ public class SavePoint : MonoBehaviour
         PlayerPrefs.SetString("LastSavePointID", gameObject.name);
         PlayerPrefs.SetInt("HasSaveData", 1);
         PlayerPrefs.Save();
+        Debug.Log($"[SAVE] HasSaveData=1, Pos=({playerTransform.position.x}, {playerTransform.position.y})");
 
         Debug.Log($"Game Saved at {gameObject.name} - Position: {playerTransform.position}");
 
@@ -132,8 +133,10 @@ public class SavePoint : MonoBehaviour
             }
 
             player.position = new Vector2(x, y);
+
         }
     }
+
 
     // ---- MỚI: GameManager.ReloadSceneFresh() gọi hàm này để xóa sạch save data ----
     // Dùng khi người chơi bấm "Restart" trên Game Over UI -> chơi lại từ đầu, không dùng save point cũ

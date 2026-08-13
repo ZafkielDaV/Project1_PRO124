@@ -50,6 +50,7 @@ public class GameManager : MonoBehaviour
     public void ReloadSceneWithSavePoint()
     {
         useSavePoint = true;
+        Debug.Log($"[GameManager] ReloadSceneWithSavePoint -> useSavePoint={useSavePoint}");
 
         string sceneToLoad = string.IsNullOrEmpty(currentSceneName)
             ? SceneManager.GetActiveScene().name
