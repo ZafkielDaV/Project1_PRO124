@@ -13,6 +13,19 @@ public class Player : MonoBehaviour
     public float attackMoveDistance = 0.5f;
     public float knockbackForce = 8f;
 
+    [Header("Dash Skill")]
+    public KeyCode dashKey = KeyCode.LeftShift;
+    public float dashSpeed = 18f;
+    public float dashDuration = 0.2f;
+    public float dashCooldown = 1f;
+    public float dashManaCost = 15f;
+    public float dashKnockback = 10f;
+    public bool dashIgnoresGravity = true;
+    public bool invincibleDuringDash = true;
+
+    private bool isDashing = false;
+    private float lastDashTime = -999f;
+
     [Header("Hurt")]
     public float hurtLockDuration = 0.2f;
 
@@ -24,7 +37,7 @@ public class Player : MonoBehaviour
     [Header("Mana")]
     public float maxMana = 50f;
     public float currentMana;
-    public HealthBar manaBar; // tái dùng script HealthBar, hoặc thay bằng script ManaBar riêng nếu có
+    public HealthBar manaBar;
 
     [Header("Death")]
     public float deathAnimDuration = 0.5f;
@@ -69,7 +82,6 @@ public class Player : MonoBehaviour
         if (gameOverPanel != null)
             gameOverPanel.SetActive(false);
 
-        // Chỉ load vị trí save point nếu GameManager cho phép (đã gộp, bỏ đoạn gọi trùng)
         bool shouldUse = GameManager.Instance != null && GameManager.Instance.ShouldUseSavePoint();
         Debug.Log($"[Player] Start() shouldUseSavePoint={shouldUse}, HasSaveData={PlayerPrefs.GetInt("HasSaveData", 0)}");
         if (shouldUse)
@@ -95,7 +107,7 @@ public class Player : MonoBehaviour
             return;
         }
 
-        if (!isAttacking && !isHurt)
+        if (!isAttacking && !isHurt && !isDashing)
         {
             float moveInput = Input.GetAxis("Horizontal");
             rb.linearVelocity = new Vector2(moveInput * moveSpeed, rb.linearVelocity.y);
@@ -106,18 +118,30 @@ public class Player : MonoBehaviour
             else if (moveInput < 0 && facingRight) Flip();
         }
 
-        if (Input.GetKeyDown(KeyCode.Space) && isGrounded && !isAttacking && !isHurt)
+        if (Input.GetKeyDown(KeyCode.Space) && isGrounded && !isAttacking && !isHurt && !isDashing)
         {
             rb.AddForce(Vector2.up * jumpForce, ForceMode2D.Impulse);
             animator.SetBool("isJumping", true);
         }
 
-        animator.SetBool("isFalling", !isGrounded && rb.linearVelocity.y < -1f);
-        animator.SetBool("isGrounded", isGrounded);
+        // [DASH] Không cho Update ghi đè isJumping/isFalling/isGrounded trong lúc đang lướt
+        if (!isDashing)
+        {
+            animator.SetBool("isFalling", !isGrounded && rb.linearVelocity.y < -1f);
+            animator.SetBool("isGrounded", isGrounded);
+        }
 
-        if (Input.GetKeyDown(KeyCode.J) && !isAttacking && !isHurt && isGrounded)
+        if (Input.GetKeyDown(KeyCode.J) && !isAttacking && !isHurt && !isDashing && isGrounded)
         {
             StartCoroutine(DoAttack());
+        }
+
+        if (Input.GetKeyDown(dashKey)
+            && !isAttacking && !isHurt && !isDashing
+            && Time.time - lastDashTime >= dashCooldown
+            && currentMana >= dashManaCost)
+        {
+            StartCoroutine(DoDash());
         }
     }
 
@@ -134,9 +158,14 @@ public class Player : MonoBehaviour
         if (collision.gameObject.CompareTag("Ground"))
         {
             isGrounded = true;
-            animator.SetBool("isJumping", false);
-            animator.SetBool("isFalling", false);
-            animator.SetBool("isGrounded", true);
+
+            // [DASH] Không đụng vào animator bool trong lúc đang lướt
+            if (!isDashing)
+            {
+                animator.SetBool("isJumping", false);
+                animator.SetBool("isFalling", false);
+                animator.SetBool("isGrounded", true);
+            }
         }
     }
 
@@ -145,7 +174,9 @@ public class Player : MonoBehaviour
         if (collision.gameObject.CompareTag("Ground"))
         {
             isGrounded = false;
-            animator.SetBool("isGrounded", false);
+
+            if (!isDashing)
+                animator.SetBool("isGrounded", false);
         }
     }
 
@@ -174,21 +205,92 @@ public class Player : MonoBehaviour
         isAttacking = false;
     }
 
-    // Chữ ký cũ (giữ tương thích ngược cho AttackHitBox và các nơi khác đang gọi):
-    // chỉ đẩy theo trục ngang, KHÔNG đụng tới vận tốc Y (rơi/nhảy vẫn giữ nguyên).
-    public void TakeDamage(float damage, float attackerDirection, float knockback)
+    // [DASH] Coroutine skill lướt: giữ sprite cuối cho tới khi hết dashDuration, tắt Jump/Fall trong lúc lướt
+    IEnumerator DoDash()
     {
+        isDashing = true;
+        lastDashTime = Time.time;
 
-        TakeDamage(damage, new Vector2(attackerDirection, 0f), knockback);
+        currentMana -= dashManaCost;
+        currentMana = Mathf.Clamp(currentMana, 0f, maxMana);
+        if (manaBar != null)
+            manaBar.SetHealth(currentMana);
+
+        // Tắt hẳn Jump/Fall để không đè lên Dash
+        animator.SetBool("isJumping", false);
+        animator.SetBool("isFalling", false);
+
+        animator.speed = 1f;
+        animator.SetTrigger("Dash");
+
+        float dashDir = facingRight ? 1f : -1f;
+
+        float originalGravity = rb.gravityScale;
+        if (dashIgnoresGravity)
+            rb.gravityScale = 0f;
+
+        if (attackHitBox != null)
+        {
+            attackHitBox.SetActive(true);
+            if (hitBoxScript != null)
+                hitBoxScript.Setup(facingRight, dashKnockback);
+        }
+
+        // Đợi 1 frame để Animator chuyển hẳn sang state Dash trước khi đọc độ dài animation
+        yield return null;
+
+        float animLength = GetCurrentStateLength();
+        bool frozen = false;
+        float elapsed = 0f;
+
+        while (elapsed < dashDuration)
+        {
+            rb.linearVelocity = new Vector2(
+                dashDir * dashSpeed,
+                dashIgnoresGravity ? 0f : rb.linearVelocity.y
+            );
+
+            // Animation Dash đã chạy hết nhưng dash vẫn còn thời gian -> đóng băng ở frame cuối
+            if (!frozen && elapsed >= animLength)
+            {
+                animator.speed = 0f;
+                frozen = true;
+            }
+
+            elapsed += Time.deltaTime;
+            yield return null;
+        }
+
+        animator.speed = 1f; // trả tốc độ animator về bình thường
+
+        if (attackHitBox != null)
+            attackHitBox.SetActive(false);
+
+        if (dashIgnoresGravity)
+            rb.gravityScale = originalGravity;
+
+        rb.linearVelocity = new Vector2(0f, rb.linearVelocity.y);
+
+        isDashing = false;
     }
 
-    // Chữ ký mới: nhận hướng đẩy dạng Vector2.
-    // Trục nào của knockbackDir khác 0 thì trục đó của vận tốc bị ghi đè theo dấu của nó;
-    // trục nào = 0 thì giữ nguyên vận tốc hiện tại (trap chỉ đẩy Y thì X không đổi).
+    // [DASH] Lấy độ dài (giây) của state animation đang chạy trên layer 0 (dùng để biết khi nào Dash anim đã hết)
+    private float GetCurrentStateLength()
+    {
+        if (animator == null) return dashDuration;
+        AnimatorStateInfo info = animator.GetCurrentAnimatorStateInfo(0);
+        return info.length;
+    }
+
+    public void TakeDamage(float damage, float attackerDirection, float knockback)
+    {
+        TakeDamage(damage, new Vector2(attackerDirection, 0f), knockback);
+    }
 
     public void TakeDamage(float damage, Vector2 knockbackDir, float knockback)
     {
         if (isHurt || isAttacking || isDead) return;
+        if (isDashing && invincibleDuringDash) return;
 
         currentHealth -= damage;
         currentHealth = Mathf.Clamp(currentHealth, 0f, maxHealth);
@@ -211,7 +313,6 @@ public class Player : MonoBehaviour
         }
     }
 
-    // Gọi hàm này khi nhặt bình máu / item hồi máu
     public void Heal(float amount)
     {
         if (isDead) return;
@@ -223,7 +324,6 @@ public class Player : MonoBehaviour
             healthBar.SetHealth(currentHealth);
     }
 
-    // Gọi hàm này khi nhặt bình mana / item hồi mana
     public void RestoreMana(float amount)
     {
         if (isDead) return;
@@ -256,15 +356,10 @@ public class Player : MonoBehaviour
     IEnumerator DeathFreezeSequence()
     {
         animator.updateMode = AnimatorUpdateMode.UnscaledTime;
-
         Time.timeScale = 0f;
-
         animator.speed = deathAnimDuration / deathTotalDuration;
-
         yield return new WaitForSecondsRealtime(deathTotalDuration);
-
         animator.speed = 0f;
-
         ShowGameOver();
     }
 
@@ -273,10 +368,6 @@ public class Player : MonoBehaviour
         if (gameOverPanel != null)
             gameOverPanel.SetActive(true);
     }
-
-    // Gắn hàm này vào nút "Restart" trên Game Over UI
-    // -> reload scene KHÔNG lấy save point (xóa hẳn save data)
-
 
     public void QuitGame()
     {

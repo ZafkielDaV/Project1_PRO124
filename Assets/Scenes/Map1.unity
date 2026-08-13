@@ -3270,7 +3270,6 @@ GameObject:
   - component: {fileID: 300969235}
   - component: {fileID: 300969238}
   - component: {fileID: 300969237}
-  - component: {fileID: 300969239}
   m_Layer: 0
   m_Name: Trap
   m_TagString: Untagged
@@ -4347,7 +4346,7 @@ TilemapCollider2D:
   m_CallbackLayers:
     serializedVersion: 2
     m_Bits: 4294967295
-  m_IsTrigger: 0
+  m_IsTrigger: 1
   m_UsedByEffector: 0
   m_CompositeOperation: 0
   m_CompositeOrder: 0
@@ -4368,36 +4367,13 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Trap
   damageAmount: 30
-  trapKnockback: 10
+  pushMode: 4
+  trapForce: 50
+  maxPushSpeed: 50
+  pushDirection: {x: 0, y: 1}
   triggerOncePerContact: 1
   retriggerCooldown: 0.3
---- !u!50 &300969239
-Rigidbody2D:
-  serializedVersion: 5
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 300969233}
-  m_BodyType: 1
-  m_Simulated: 1
-  m_UseFullKinematicContacts: 0
-  m_UseAutoMass: 0
-  m_Mass: 1
-  m_LinearDamping: 0
-  m_AngularDamping: 0.05
-  m_GravityScale: 1
-  m_Material: {fileID: 0}
-  m_IncludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ExcludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_Interpolate: 0
-  m_SleepingMode: 1
-  m_CollisionDetection: 0
-  m_Constraints: 4
+  debugLog: 1
 --- !u!1001 &307765482
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -7376,6 +7352,10 @@ PrefabInstance:
       propertyPath: healthBar
       value: 
       objectReference: {fileID: 2070311583}
+    - target: {fileID: 5533606779897914920, guid: 5d08106e71041ba49befbc05b425146d, type: 3}
+      propertyPath: currentMana
+      value: 50
+      objectReference: {fileID: 0}
     - target: {fileID: 5533606779897914920, guid: 5d08106e71041ba49befbc05b425146d, type: 3}
       propertyPath: gameOverPanel
       value: 
