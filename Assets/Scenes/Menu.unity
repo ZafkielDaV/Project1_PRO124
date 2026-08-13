@@ -252,6 +252,7 @@ GameObject:
   - component: {fileID: 403132585}
   - component: {fileID: 403132584}
   - component: {fileID: 403132583}
+  - component: {fileID: 403132587}
   m_Layer: 5
   m_Name: Canvas
   m_TagString: Untagged
@@ -346,6 +347,21 @@ RectTransform:
   m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: 0, y: 0}
   m_Pivot: {x: 0, y: 0}
+--- !u!114 &403132587
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 403132582}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 84eb6fa9cb212774caa75ef18542a741, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::MainMenuUI
+  newGameButton: {fileID: 1841323976}
+  continueButton: {fileID: 1412975848}
+  gameplaySceneName: Map1
 --- !u!1 &673361503
 GameObject:
   m_ObjectHideFlags: 0
@@ -802,7 +818,7 @@ GameObject:
   - component: {fileID: 1412975849}
   - component: {fileID: 1412975848}
   m_Layer: 5
-  m_Name: More
+  m_Name: Continued
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -1227,9 +1243,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: 'More
-
-'
+  m_text: Continued
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: db1dc66080d8bf149926c2fa7d985487, type: 2}
   m_sharedMaterial: {fileID: 2694320906823735448, guid: db1dc66080d8bf149926c2fa7d985487, type: 2}

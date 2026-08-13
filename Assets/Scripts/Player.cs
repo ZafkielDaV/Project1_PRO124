@@ -11,20 +11,20 @@ public class Player : MonoBehaviour
     public GameObject attackHitBox;
     public float attackDuration = 0.3f;
     public float attackMoveDistance = 0.5f;
-    public float knockbackForce = 8f; // lực đẩy lùi enemy khi trúng đòn
+    public float knockbackForce = 8f;
 
     [Header("Hurt")]
-    public float hurtLockDuration = 0.2f; // thời gian bị khóa di chuyển/attack sau khi trúng đòn
+    public float hurtLockDuration = 0.2f;
 
     [Header("Health")]
     public float maxHealth = 100f;
     public float currentHealth;
-    public HealthBar healthBar; // kéo thả HealthBar UI vào đây trong Inspector
+    public HealthBar healthBar;
 
     [Header("Death")]
-    public float deathAnimDuration = 0.5f;   // thời lượng animation Die (khớp 12 sprite @ 24fps)
-    public float deathTotalDuration = 1f;    // tổng thời gian đóng băng trước khi xử lý bước tiếp theo (vd: load lại scene)
-    public GameObject gameOverPanel;         // kéo thả Panel Game Over (UI) vào đây, để inactive sẵn trong scene
+    public float deathAnimDuration = 0.5f;
+    public float deathTotalDuration = 1f;
+    public GameObject gameOverPanel;
 
     private Rigidbody2D rb;
     private bool isGrounded;
@@ -48,40 +48,38 @@ public class Player : MonoBehaviour
             hitBoxScript = attackHitBox.GetComponent<AttackHitBox>();
         }
 
-        // Khởi tạo máu
         currentHealth = maxHealth;
         if (healthBar != null)
             healthBar.SetMaxHealth(maxHealth);
 
-        // Đảm bảo Game Over panel tắt khi bắt đầu
         if (gameOverPanel != null)
             gameOverPanel.SetActive(false);
 
-        // ---- THÊM DÒNG NÀY: khôi phục vị trí về save point gần nhất ----
-        SavePoint.LoadLastPosition(transform);
+        // ---- SỬA: chỉ load vị trí save point nếu GameManager cho phép ----
+        if (GameManager.Instance != null && GameManager.Instance.ShouldUseSavePoint())
+        {
+            SavePoint.LoadLastPosition(transform);
+        }
     }
 
     void Update()
     {
-        if (isDead) return; // không cho làm gì nữa nếu đã chết
+        if (isDead) return;
 
-        // ---------------- DIALOGUE LOCK ----------------
         if (DialogueManager.IsDialogueActive)
         {
-            // Đứng yên hoàn toàn trong lúc dialogue đang mở
             rb.linearVelocity = new Vector2(0f, rb.linearVelocity.y);
             animator.SetFloat("Speed", 0f);
 
-            // Bấm J: đóng dialogue lại, đồng thời KHÔNG cho tấn công trong frame này
             if (Input.GetKeyDown(KeyCode.J))
             {
                 DialogueManager.Instance.CloseDialogueUI();
             }
 
-            return; // chặn toàn bộ input di chuyển/nhảy/tấn công phía dưới khi dialogue còn active
+            return;
         }
 
-        if (!isAttacking && !isHurt) // chỉ cho di chuyển khi không attack và không đang hurt
+        if (!isAttacking && !isHurt)
         {
             float moveInput = Input.GetAxis("Horizontal");
             rb.linearVelocity = new Vector2(moveInput * moveSpeed, rb.linearVelocity.y);
@@ -101,7 +99,6 @@ public class Player : MonoBehaviour
         animator.SetBool("isFalling", !isGrounded && rb.linearVelocity.y < -1f);
         animator.SetBool("isGrounded", isGrounded);
 
-        // Chỉ nhận phím tấn công khi: KHÔNG đang attack, KHÔNG đang hurt, VÀ đang đứng trên đất
         if (Input.GetKeyDown(KeyCode.J) && !isAttacking && !isHurt && isGrounded)
         {
             StartCoroutine(DoAttack());
@@ -161,12 +158,9 @@ public class Player : MonoBehaviour
         isAttacking = false;
     }
 
-    // ---------------- HURT / TAKE DAMAGE ----------------
-
-    // Được Enemy gọi khi tấn công trúng Player
     public void TakeDamage(float damage, float attackerDirection, float knockback)
     {
-        if (isHurt || isAttacking || isDead) return; // tránh dính đòn liên tục / chồng animation Attack
+        if (isHurt || isAttacking || isDead) return;
 
         currentHealth -= damage;
         currentHealth = Mathf.Clamp(currentHealth, 0f, maxHealth);
@@ -193,12 +187,10 @@ public class Player : MonoBehaviour
         isHurt = false;
     }
 
-    // ---------------- DEATH ----------------
-
     private void Die()
     {
         isDead = true;
-        isHurt = true; // khóa mọi hành động khác
+        isHurt = true;
 
         rb.linearVelocity = Vector2.zero;
         animator.SetTrigger("Die");
@@ -228,13 +220,9 @@ public class Player : MonoBehaviour
     }
 
     // Gắn hàm này vào nút "Restart" trên Game Over UI
-    public void RestartLevel()
-    {
-        Time.timeScale = 1f; // reset time trước khi load lại scene
-        SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
-    }
+    // -> reload scene KHÔNG lấy save point (xóa hẳn save data)
+  
 
-    // Gắn hàm này vào nút "Quit" trên Game Over UI (nếu cần)
     public void QuitGame()
     {
         Time.timeScale = 1f;

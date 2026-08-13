@@ -72,6 +72,7 @@ public class SavePoint : MonoBehaviour
 
         Debug.Log($"Game Saved at {gameObject.name} - Position: {playerTransform.position}");
 
+
         // --- Bật Visual, chạy animation, rồi tự tắt khi xong ---
         if (visualRoutine != null)
             StopCoroutine(visualRoutine);
@@ -115,6 +116,7 @@ public class SavePoint : MonoBehaviour
     }
 
     // ============================================
+    // Player.cs gọi hàm này trong Start() - CHỈ khi GameManager.ShouldUseSavePoint() == true
     public static void LoadLastPosition(Transform player)
     {
         if (PlayerPrefs.GetInt("HasSaveData", 0) == 1)
@@ -131,5 +133,18 @@ public class SavePoint : MonoBehaviour
 
             player.position = new Vector2(x, y);
         }
+    }
+
+    // ---- MỚI: GameManager.ReloadSceneFresh() gọi hàm này để xóa sạch save data ----
+    // Dùng khi người chơi bấm "Restart" trên Game Over UI -> chơi lại từ đầu, không dùng save point cũ
+    public static void ClearSaveData()
+    {
+        PlayerPrefs.DeleteKey("PlayerPosX");
+        PlayerPrefs.DeleteKey("PlayerPosY");
+        PlayerPrefs.DeleteKey("LastSavePointID");
+        PlayerPrefs.DeleteKey("HasSaveData");
+        PlayerPrefs.Save();
+
+        Debug.Log("Save data cleared.");
     }
 }
