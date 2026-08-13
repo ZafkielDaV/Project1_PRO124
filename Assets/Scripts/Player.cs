@@ -56,6 +56,9 @@ public class Player : MonoBehaviour
         // Đảm bảo Game Over panel tắt khi bắt đầu
         if (gameOverPanel != null)
             gameOverPanel.SetActive(false);
+
+        // ---- THÊM DÒNG NÀY: khôi phục vị trí về save point gần nhất ----
+        SavePoint.LoadLastPosition(transform);
     }
 
     void Update()

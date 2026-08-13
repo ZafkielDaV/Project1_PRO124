@@ -22,3 +22,11 @@ MonoBehaviour:
   - speakerName: 
     content: "Nh\u1EA5n ph\xEDm [J] \u0111\u1EC3 t\u1EA5n c\xF4ng qu\xE1i v\u1EADt."
     speakerPortrait: {fileID: 0}
+  - speakerName: 
+    content: "Phi\u1EBFn \u0111\xE1 Obelisk c\xF3 th\u1EC3 gi\xFAp b\u1EA1n h\u1ED3i
+      sinh ngay t\u1EA1i \u0111i\u1EC3m \u0111\xF3"
+    speakerPortrait: {fileID: 0}
+  - speakerName: 
+    content: "Nh\u1EA5n n\xFAt [Y] \u0111\u1EC3 l\u01B0u Save Point khi \u1EDF g\u1EA7n
+      phi\u1EBFn \u0111\xE1\n"
+    speakerPortrait: {fileID: 0}
