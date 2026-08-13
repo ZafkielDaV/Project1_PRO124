@@ -42,6 +42,11 @@ public class Player : MonoBehaviour
         rb = GetComponent<Rigidbody2D>();
         animator = GetComponent<Animator>();
 
+        if (rb == null)
+            Debug.LogError("[Player] Thiếu Rigidbody2D trên GameObject!");
+        if (animator == null)
+            Debug.LogError("[Player] Thiếu Animator trên GameObject!");
+
         if (attackHitBox != null)
         {
             attackHitBox.SetActive(false);
@@ -54,15 +59,11 @@ public class Player : MonoBehaviour
 
         if (gameOverPanel != null)
             gameOverPanel.SetActive(false);
+
+        // Chỉ load vị trí save point nếu GameManager cho phép (đã gộp, bỏ đoạn gọi trùng)
         bool shouldUse = GameManager.Instance != null && GameManager.Instance.ShouldUseSavePoint();
         Debug.Log($"[Player] Start() shouldUseSavePoint={shouldUse}, HasSaveData={PlayerPrefs.GetInt("HasSaveData", 0)}");
         if (shouldUse)
-        {
-            SavePoint.LoadLastPosition(transform);
-        }
-
-        // ---- SỬA: chỉ load vị trí save point nếu GameManager cho phép ----
-        if (GameManager.Instance != null && GameManager.Instance.ShouldUseSavePoint())
         {
             SavePoint.LoadLastPosition(transform);
         }
