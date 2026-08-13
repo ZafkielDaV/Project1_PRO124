@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using System.Collections;
 
 public class Player : MonoBehaviour
@@ -22,7 +23,8 @@ public class Player : MonoBehaviour
 
     [Header("Death")]
     public float deathAnimDuration = 0.5f;   // thời lượng animation Die (khớp 12 sprite @ 24fps)
-    public float deathTotalDuration = 0f;    // tổng thời gian đóng băng trước khi xử lý bước tiếp theo (vd: load lại scene)
+    public float deathTotalDuration = 1f;    // tổng thời gian đóng băng trước khi xử lý bước tiếp theo (vd: load lại scene)
+    public GameObject gameOverPanel;         // kéo thả Panel Game Over (UI) vào đây, để inactive sẵn trong scene
 
     private Rigidbody2D rb;
     private bool isGrounded;
@@ -50,6 +52,10 @@ public class Player : MonoBehaviour
         currentHealth = maxHealth;
         if (healthBar != null)
             healthBar.SetMaxHealth(maxHealth);
+
+        // Đảm bảo Game Over panel tắt khi bắt đầu
+        if (gameOverPanel != null)
+            gameOverPanel.SetActive(false);
     }
 
     void Update()
@@ -208,5 +214,27 @@ public class Player : MonoBehaviour
         yield return new WaitForSecondsRealtime(deathTotalDuration);
 
         animator.speed = 0f;
+
+        ShowGameOver();
+    }
+
+    private void ShowGameOver()
+    {
+        if (gameOverPanel != null)
+            gameOverPanel.SetActive(true);
+    }
+
+    // Gắn hàm này vào nút "Restart" trên Game Over UI
+    public void RestartLevel()
+    {
+        Time.timeScale = 1f; // reset time trước khi load lại scene
+        SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
+    }
+
+    // Gắn hàm này vào nút "Quit" trên Game Over UI (nếu cần)
+    public void QuitGame()
+    {
+        Time.timeScale = 1f;
+        Application.Quit();
     }
 }
