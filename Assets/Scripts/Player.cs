@@ -37,7 +37,13 @@ public class Player : MonoBehaviour
     [Header("Mana")]
     public float maxMana = 50f;
     public float currentMana;
-    public HealthBar manaBar;
+    public ManaBar manaBar; // thay vì public HealthBar manaBar;
+    [Header("Mana Regen")]
+    public bool autoRegenMana = true;
+    public float manaRegenRate = 5f;      // mana hồi mỗi giây
+    public float manaRegenDelay = 1.5f;   // thời gian chờ sau khi dùng skill mới bắt đầu hồi
+
+    private float lastManaUseTime = -999f;
 
     [Header("Death")]
     public float deathAnimDuration = 0.5f;
@@ -92,6 +98,7 @@ public class Player : MonoBehaviour
 
     void Update()
     {
+
         if (isDead) return;
 
         if (DialogueManager.IsDialogueActive)
@@ -143,6 +150,21 @@ public class Player : MonoBehaviour
         {
             StartCoroutine(DoDash());
         }
+        if (autoRegenMana && !isDead)
+        {
+            RegenManaOverTime();
+        }
+    }
+    private void RegenManaOverTime()
+    {
+        if (currentMana >= maxMana) return;
+        if (Time.time - lastManaUseTime < manaRegenDelay) return;
+
+        currentMana += manaRegenRate * Time.deltaTime;
+        currentMana = Mathf.Clamp(currentMana, 0f, maxMana);
+
+        if (manaBar != null)
+            manaBar.SetHealth(currentMana);
     }
 
     private void Flip()
@@ -206,6 +228,10 @@ public class Player : MonoBehaviour
     }
 
     // [DASH] Coroutine skill lướt: giữ sprite cuối cho tới khi hết dashDuration, tắt Jump/Fall trong lúc lướt
+    // [DASH COOLDOWN] Cho UI bên ngoài đọc trạng thái hồi chiêu
+    public float DashCooldownRemaining => Mathf.Max(0f, dashCooldown - (Time.time - lastDashTime));
+    public float DashCooldownPercent01 => dashCooldown <= 0f ? 1f : Mathf.Clamp01(1f - (DashCooldownRemaining / dashCooldown));
+    public bool IsDashReady => DashCooldownRemaining <= 0f && currentMana >= dashManaCost;
     IEnumerator DoDash()
     {
         isDashing = true;
@@ -213,8 +239,10 @@ public class Player : MonoBehaviour
 
         currentMana -= dashManaCost;
         currentMana = Mathf.Clamp(currentMana, 0f, maxMana);
+        Debug.Log($"[Mana] currentMana = {currentMana}, manaBar null? {manaBar == null}"); // thêm dòng này
+        lastManaUseTime = Time.time;   // thêm dòng này
         if (manaBar != null)
-            manaBar.SetHealth(currentMana);
+            manaBar.SetHealth(currentMana); 
 
         // Tắt hẳn Jump/Fall để không đè lên Dash
         animator.SetBool("isJumping", false);
