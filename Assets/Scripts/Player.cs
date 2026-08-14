@@ -4,6 +4,8 @@ using System.Collections;
 
 public class Player : MonoBehaviour
 {
+    [Header("Music")]
+    public AudioSource bgmSource; // kéo AudioSource chứa nhạc nền vào đây trong Inspector
     public float moveSpeed = 5f;
     public float jumpForce = 7f;
 
@@ -54,6 +56,7 @@ public class Player : MonoBehaviour
     private bool isGrounded;
     private Animator animator;
     private bool facingRight = true;
+    private PlayerSFX sfx; // THÊM DÒNG NÀY
 
     private bool isAttacking = false;
     private AttackHitBox hitBoxScript;
@@ -63,6 +66,7 @@ public class Player : MonoBehaviour
 
     void Start()
     {
+        sfx = GetComponent<PlayerSFX>(); // THÊM DÒNG NÀY
         rb = GetComponent<Rigidbody2D>();
         animator = GetComponent<Animator>();
 
@@ -70,6 +74,8 @@ public class Player : MonoBehaviour
             Debug.LogError("[Player] Thiếu Rigidbody2D trên GameObject!");
         if (animator == null)
             Debug.LogError("[Player] Thiếu Animator trên GameObject!");
+        if (sfx == null) // THÊM ĐOẠN NÀY (không bắt buộc, chỉ cảnh báo)
+            Debug.LogWarning("[Player] Thiếu PlayerSFX trên GameObject!");
 
         if (attackHitBox != null)
         {
@@ -123,12 +129,15 @@ public class Player : MonoBehaviour
 
             if (moveInput > 0 && !facingRight) Flip();
             else if (moveInput < 0 && facingRight) Flip();
+            if (sfx != null)
+                sfx.HandleFootstepTimer(Mathf.Abs(moveInput) > 0.1f, isGrounded);
         }
 
         if (Input.GetKeyDown(KeyCode.Space) && isGrounded && !isAttacking && !isHurt && !isDashing)
         {
             rb.AddForce(Vector2.up * jumpForce, ForceMode2D.Impulse);
             animator.SetBool("isJumping", true);
+            if (sfx != null) sfx.PlayJump(); // THÊM DÒNG NÀY
         }
 
         // [DASH] Không cho Update ghi đè isJumping/isFalling/isGrounded trong lúc đang lướt
@@ -207,6 +216,7 @@ public class Player : MonoBehaviour
         isAttacking = true;
 
         animator.SetTrigger("Attack");
+        if (sfx != null) sfx.PlayAttack(); // THÊM DÒNG NÀY
 
         rb.linearVelocity = new Vector2(0f, rb.linearVelocity.y);
         transform.position += new Vector3(facingRight ? attackMoveDistance : -attackMoveDistance, 0f, 0f);
@@ -250,6 +260,7 @@ public class Player : MonoBehaviour
 
         animator.speed = 1f;
         animator.SetTrigger("Dash");
+        if (sfx != null) sfx.PlayDash(); // THÊM DÒNG NÀY
 
         float dashDir = facingRight ? 1f : -1f;
 
@@ -327,6 +338,7 @@ public class Player : MonoBehaviour
             healthBar.SetHealth(currentHealth);
 
         animator.SetTrigger("Hurt");
+        sfx?.PlayHurt(); // THÊM DÒNG NÀY
 
         Vector2 newVelocity = rb.linearVelocity;
         if (knockbackDir.x != 0f) newVelocity.x = Mathf.Sign(knockbackDir.x) * knockback;
@@ -377,6 +389,9 @@ public class Player : MonoBehaviour
 
         rb.linearVelocity = Vector2.zero;
         animator.SetTrigger("Die");
+        if (sfx != null) sfx.PlayDie();
+        if (bgmSource != null)
+            bgmSource.Stop();// THÊM DÒNG NÀY
 
         StartCoroutine(DeathFreezeSequence());
     }

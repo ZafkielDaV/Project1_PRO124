@@ -1,24 +1,26 @@
 using System.Collections;
 using UnityEngine;
-using TMPro; // nếu dùng Text (Legacy) thay vì TextMeshPro, đổi sang using UnityEngine.UI; và đổi kiểu biến bên dưới thành Text
+using TMPro;
 
 public class CoinDisplay : MonoBehaviour
 {
-    public TextMeshProUGUI coinText; // kéo Text (TMP) từ UI vào ô này trong Inspector
-    public string format = "{0} x"; // đổi thành "Coin: {0}" hoặc "x{0}" tuỳ ý muốn hiển thị
+    public TextMeshProUGUI coinText;
+    public string format = "{0} x";
+
+    [Header("Sound")]
+    public AudioSource sfxSource; // kéo AudioSource vào đây (có thể để chung với PlayerSFX hoặc riêng)
+    public AudioClip coinSound;
 
     private bool isSubscribed = false;
+    private bool isFirstUpdate = true; // THÊM DÒNG NÀY — để bỏ qua lần đầu (không phát âm thanh lúc khởi tạo)
 
     void Start()
     {
-        // Dùng Start() thay vì OnEnable() vì Start chạy sau khi TẤT CẢ Awake() trong scene
-        // đã chạy xong, đảm bảo CoinManager.Instance chắc chắn đã được gán.
         TrySubscribe();
     }
 
     void OnEnable()
     {
-        // Trường hợp object bị tắt/bật lại sau khi Start() đã chạy 1 lần
         if (!isSubscribed)
             TrySubscribe();
     }
@@ -43,11 +45,9 @@ public class CoinDisplay : MonoBehaviour
 
         CoinManager.Instance.OnCoinChanged += UpdateDisplay;
         isSubscribed = true;
-        UpdateDisplay(CoinManager.Instance.currentCoin); // hiển thị đúng số ngay khi UI bật lên
+        UpdateDisplay(CoinManager.Instance.currentCoin); // hiển thị đúng số ngay khi UI bật lên (không phát âm thanh)
     }
 
-    // Phòng trường hợp CoinManager.Awake() chạy muộn hơn Start() của chính CoinDisplay
-    // (ví dụ CoinManager nằm trên object bị disable lúc đầu rồi mới được bật ở script khác).
     private IEnumerator RetrySubscribeNextFrame()
     {
         yield return null;
@@ -61,5 +61,21 @@ public class CoinDisplay : MonoBehaviour
             coinText.text = string.Format(format, newAmount);
         else
             Debug.LogWarning("[CoinDisplay] Chưa gán coinText trong Inspector.");
+
+        // THÊM ĐOẠN NÀY — phát âm thanh, bỏ qua lần đầu
+        if (isFirstUpdate)
+        {
+            isFirstUpdate = false;
+        }
+        else
+        {
+            PlayCoinSound();
+        }
+    }
+
+    private void PlayCoinSound() // THÊM HÀM NÀY
+    {
+        if (sfxSource != null && coinSound != null)
+            sfxSource.PlayOneShot(coinSound);
     }
 }

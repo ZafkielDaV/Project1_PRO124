@@ -15,6 +15,7 @@ GameObject:
   - component: {fileID: 5533606779897914920}
   - component: {fileID: 5949818156353607914}
   - component: {fileID: 78216924973877108}
+  - component: {fileID: 4588384885641976594}
   m_Layer: 3
   m_Name: Player 1
   m_TagString: Player
@@ -36,6 +37,7 @@ Transform:
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 8671069434292974429}
+  - {fileID: 4813436080275972430}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!212 &3926057252804329323
@@ -164,10 +166,27 @@ MonoBehaviour:
   attackDuration: 0.3
   attackMoveDistance: 0.5
   knockbackForce: 8
+  dashKey: 304
+  dashSpeed: 18
+  dashDuration: 0.2
+  dashCooldown: 1
+  dashManaCost: 15
+  dashKnockback: 10
+  dashIgnoresGravity: 1
+  invincibleDuringDash: 1
   hurtLockDuration: 0.2
   maxHealth: 100
-  currentHealth: 0
+  currentHealth: 100
   healthBar: {fileID: 0}
+  maxMana: 100
+  currentMana: 100
+  manaBar: {fileID: 0}
+  autoRegenMana: 1
+  manaRegenRate: 1
+  manaRegenDelay: 1.5
+  deathAnimDuration: 0.5
+  deathTotalDuration: 1
+  gameOverPanel: {fileID: 0}
 --- !u!70 &5949818156353607914
 CapsuleCollider2D:
   m_ObjectHideFlags: 0
@@ -218,12 +237,168 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::HealthBar
   fillImage: {fileID: 0}
-  lerpSpeed: 5
+  damageFillImage: {fileID: 0}
+  damagePercentText: {fileID: 0}
+  damageDelay: 0.5
+  damageLerpSpeed: 3
   fullHealthColor: {r: 0, g: 1, b: 0, a: 1}
   midHealthColor: {r: 1, g: 0.92156863, b: 0.015686275, a: 1}
   lowHealthColor: {r: 1, g: 0, b: 0, a: 1}
   midThreshold: 0.6
   lowThreshold: 0.3
+--- !u!114 &4588384885641976594
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 993549639127901540}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 015b16cdd7486194eac3323843a55890, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerSFX
+  attackClip: {fileID: 8300000, guid: cfeb15fadde02b740bcc23ddc82222dd, type: 3}
+  dashClip: {fileID: 0}
+  hurtClip: {fileID: 0}
+  dieClip: {fileID: 0}
+  sfxSource: {fileID: 9177486937474410597}
+  jumpClip: {fileID: 8300000, guid: 23837bb79ec0d6543a769820d2577bb4, type: 3}
+  footstepClips:
+  - {fileID: 8300000, guid: 856d656f84cfe4c49a4a64754449259e, type: 3}
+  - {fileID: 8300000, guid: 65bb6322fc2f63f4d95a8f6f53894c95, type: 3}
+  - {fileID: 8300000, guid: 5753be2aa32ba86478b94f9de79443a3, type: 3}
+  - {fileID: 8300000, guid: 5419afe64cec3bb4ea0e2f1c24b25a8b, type: 3}
+  footstepInterval: 0.35
+--- !u!1 &6377821057350348276
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 4813436080275972430}
+  - component: {fileID: 9177486937474410597}
+  m_Layer: 0
+  m_Name: Player_SFX
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &4813436080275972430
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6377821057350348276}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: 0.41116, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 4998144959343712786}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!82 &9177486937474410597
+AudioSource:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6377821057350348276}
+  m_Enabled: 1
+  serializedVersion: 4
+  OutputAudioMixerGroup: {fileID: 0}
+  m_audioClip: {fileID: 0}
+  m_Resource: {fileID: 0}
+  m_PlayOnAwake: 0
+  m_Volume: 1
+  m_Pitch: 1
+  Loop: 0
+  Mute: 0
+  Spatialize: 0
+  SpatializePostEffects: 0
+  Priority: 128
+  DopplerLevel: 1
+  MinDistance: 1
+  MaxDistance: 500
+  Pan2D: 0
+  rolloffMode: 0
+  BypassEffects: 0
+  BypassListenerEffects: 0
+  BypassReverbZones: 0
+  rolloffCustomCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    - serializedVersion: 3
+      time: 1
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  panLevelCustomCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  spreadCustomCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  reverbZoneMixCustomCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
 --- !u!1 &7056348008765843027
 GameObject:
   m_ObjectHideFlags: 0

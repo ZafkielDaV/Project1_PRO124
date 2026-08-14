@@ -3,16 +3,19 @@ using System.Collections;
 
 public class SavePoint : MonoBehaviour
 {
+    [Header("Effects (tùy chọn)")]
+    [SerializeField] private ParticleSystem saveEffect;
+    [SerializeField] private AudioSource saveSound;
+
+    [Header("Restore on Save")] // THÊM HEADER + 2 BIẾN NÀY
+    [SerializeField] private float healAmount = 50f;
+    [SerializeField] private float manaRestoreAmount = 50f;
     [Header("References")]
     [SerializeField] private GameObject pressPromptUI;
     [SerializeField] private KeyCode saveKey = KeyCode.Y;
     [SerializeField] private GameObject visualObject;     // object con chứa SpriteRenderer + Animator
     [SerializeField] private Animator saveAnimator;       // Animator nằm trên visualObject
     [SerializeField] private string saveAnimTrigger = "Save"; // tên Trigger trong Animator Controller
-
-    [Header("Effects (tùy chọn)")]
-    [SerializeField] private ParticleSystem saveEffect;
-    [SerializeField] private AudioSource saveSound;
 
     private bool playerInRange = false;
     private Transform playerTransform;
@@ -73,6 +76,13 @@ public class SavePoint : MonoBehaviour
 
         Debug.Log($"Game Saved at {gameObject.name} - Position: {playerTransform.position}");
 
+        // --- THÊM: Hồi máu + mana cho Player ---
+        Player player = playerTransform.GetComponent<Player>();
+        if (player != null)
+        {
+            player.Heal(healAmount);
+            player.RestoreMana(manaRestoreAmount);
+        }
 
         // --- Bật Visual, chạy animation, rồi tự tắt khi xong ---
         if (visualRoutine != null)
