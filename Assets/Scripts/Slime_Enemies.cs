@@ -68,6 +68,23 @@ public class EnemySlime : MonoBehaviour, IDamageable
     [SerializeField] private Animator animator;
     [SerializeField] private string walkBoolParam = "IsWalking";
 
+    [Header("SFX")]
+    [SerializeField] private AudioSource audioSource;          // nếu để trống sẽ tự GetComponent/AddComponent
+    [SerializeField] private AudioClip[] moveSfxClips;         // tiếng bước đi / trườn, phát lặp lại theo interval
+    [SerializeField] private float moveSfxInterval = 0.4f;     // khoảng cách giữa 2 lần phát âm thanh di chuyển
+    [SerializeField] private AudioClip[] hurtSfxClips;         // phát khi bị đánh trúng / knockback
+    [SerializeField] private AudioClip[] attackSfxClips;       // phát khi bắt đầu ra đòn (lúc windup)
+    [SerializeField] private AudioClip dieSfxClip;             // phát khi chết
+    [SerializeField][Range(0f, 1f)] private float sfxVolume = 1f;
+
+    [Header("SFX - Khoảng cách nghe")]
+    [SerializeField] private bool limitSfxByDistance = true;   // bật để chỉ nghe khi player ở gần
+    [SerializeField] private float sfxMinDistance = 1.5f;      // trong khoảng này nghe full volume
+    [SerializeField] private float sfxMaxDistance = 6f;        // ngoài khoảng này không nghe thấy nữa
+    [SerializeField] private AudioRolloffMode sfxRolloffMode = AudioRolloffMode.Linear;
+
+    private float moveSfxTimer = 0f;
+
     private Rigidbody2D rb;
     private int direction = 1;          // 1 = phải, -1 = trái
     private float distanceTarget;       // quãng đường cần đi trong lượt hiện tại
@@ -85,6 +102,29 @@ public class EnemySlime : MonoBehaviour, IDamageable
 
         if (animator == null)
             animator = GetComponent<Animator>();
+
+        if (audioSource == null)
+        {
+            audioSource = GetComponent<AudioSource>();
+            if (audioSource == null)
+                audioSource = gameObject.AddComponent<AudioSource>();
+        }
+        audioSource.playOnAwake = false;
+        audioSource.loop = false;
+
+        if (limitSfxByDistance)
+        {
+            // spatialBlend = 1 -> âm thanh 3D, tự nhỏ dần theo khoảng cách tới AudioListener
+            // (AudioListener thường gắn trên Player hoặc Camera bám theo Player)
+            audioSource.spatialBlend = 1f;
+            audioSource.rolloffMode = sfxRolloffMode;
+            audioSource.minDistance = sfxMinDistance;
+            audioSource.maxDistance = sfxMaxDistance;
+        }
+        else
+        {
+            audioSource.spatialBlend = 0f; // 2D, nghe rõ mọi lúc
+        }
     }
 
     private void Start()
@@ -209,6 +249,7 @@ public class EnemySlime : MonoBehaviour, IDamageable
             SetWalking(true);
             Vector2 moveDelta = new Vector2(dir, 0f) * chaseSpeed * Time.fixedDeltaTime;
             rb.MovePosition(rb.position + moveDelta);
+            distanceMoved += moveDelta.magnitude;
         }
     }
 
@@ -221,6 +262,8 @@ public class EnemySlime : MonoBehaviour, IDamageable
 
         if (animator != null)
             animator.SetTrigger("Attack");
+
+        PlayAttackSfx();
 
         yield return new WaitForSeconds(attackWindup);
 
@@ -301,6 +344,8 @@ public class EnemySlime : MonoBehaviour, IDamageable
         if (animator != null)
             animator.SetTrigger("Hurt");
 
+        PlayHurtSfx();
+
         if (knockbackRoutine != null)
             StopCoroutine(knockbackRoutine);
 
@@ -347,6 +392,7 @@ public class EnemySlime : MonoBehaviour, IDamageable
             animator.ResetTrigger("Attack");
         }
 
+        PlayDieSfx();
         PlayDeathAnimation();
         Destroy(gameObject, deathAnimDuration);
     }
@@ -433,11 +479,25 @@ public class EnemySlime : MonoBehaviour, IDamageable
 
     private void SetWalking(bool value)
     {
-        if (isWalking == value) return;
+        if (isWalking == value)
+        {
+            // Vẫn đang đi -> tiếp tục đếm giờ để phát SFX di chuyển theo interval
+            if (isWalking)
+                UpdateMoveSfx();
+            return;
+        }
+
         isWalking = value;
 
         if (animator != null)
             animator.SetBool(walkBoolParam, isWalking);
+
+        if (isWalking)
+        {
+            // Bắt đầu đi -> phát ngay 1 tiếng bước rồi reset timer
+            moveSfxTimer = 0f;
+            UpdateMoveSfx();
+        }
     }
 
     private void StartPause()
@@ -457,6 +517,44 @@ public class EnemySlime : MonoBehaviour, IDamageable
         Vector3 scale = transform.localScale;
         scale.x = Mathf.Abs(scale.x) * direction;
         transform.localScale = scale;
+    }
+
+    // ---------------- SFX ----------------
+
+    private void UpdateMoveSfx()
+    {
+        moveSfxTimer -= Time.fixedDeltaTime;
+        if (moveSfxTimer > 0f) return;
+
+        moveSfxTimer = moveSfxInterval;
+        PlayRandomClip(moveSfxClips);
+    }
+
+    private void PlayAttackSfx()
+    {
+        PlayRandomClip(attackSfxClips);
+    }
+
+    private void PlayHurtSfx()
+    {
+        PlayRandomClip(hurtSfxClips);
+    }
+
+    private void PlayDieSfx()
+    {
+        if (dieSfxClip == null || audioSource == null) return;
+        // Dùng PlayOneShot để tiếng chết vẫn kêu hết dù object bị Destroy sau đó không lâu
+        audioSource.PlayOneShot(dieSfxClip, sfxVolume);
+    }
+
+    private void PlayRandomClip(AudioClip[] clips)
+    {
+        if (audioSource == null || clips == null || clips.Length == 0) return;
+
+        AudioClip clip = clips[Random.Range(0, clips.Length)];
+        if (clip == null) return;
+
+        audioSource.PlayOneShot(clip, sfxVolume);
     }
 
     private void OnDrawGizmosSelected()

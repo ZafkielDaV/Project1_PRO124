@@ -6,6 +6,7 @@ public class Player : MonoBehaviour
 {
     [Header("Music")]
     public AudioSource bgmSource; // kéo AudioSource chứa nhạc nền vào đây trong Inspector
+    public float bgmFadeOutDuration = 1f; // thời gian nhạc nền tắt dần khi Player chết
     public float moveSpeed = 5f;
     public float jumpForce = 7f;
 
@@ -252,7 +253,7 @@ public class Player : MonoBehaviour
         Debug.Log($"[Mana] currentMana = {currentMana}, manaBar null? {manaBar == null}"); // thêm dòng này
         lastManaUseTime = Time.time;   // thêm dòng này
         if (manaBar != null)
-            manaBar.SetHealth(currentMana); 
+            manaBar.SetHealth(currentMana);
 
         // Tắt hẳn Jump/Fall để không đè lên Dash
         animator.SetBool("isJumping", false);
@@ -390,10 +391,36 @@ public class Player : MonoBehaviour
         rb.linearVelocity = Vector2.zero;
         animator.SetTrigger("Die");
         if (sfx != null) sfx.PlayDie();
+
         if (bgmSource != null)
-            bgmSource.Stop();// THÊM DÒNG NÀY
+            StartCoroutine(FadeOutBgm(bgmFadeOutDuration)); // SỬA: fade mượt thay vì Stop() đột ngột
 
         StartCoroutine(DeathFreezeSequence());
+    }
+
+    // Tắt dần nhạc nền khi Player chết. Dùng unscaledDeltaTime vì DeathFreezeSequence sẽ set Time.timeScale = 0.
+    IEnumerator FadeOutBgm(float duration)
+    {
+        if (bgmSource == null) yield break;
+
+        float startVolume = bgmSource.volume;
+
+        if (duration <= 0f)
+        {
+            bgmSource.Stop();
+            yield break;
+        }
+
+        float t = 0f;
+        while (t < duration)
+        {
+            t += Time.unscaledDeltaTime;
+            bgmSource.volume = Mathf.Lerp(startVolume, 0f, t / duration);
+            yield return null;
+        }
+
+        bgmSource.Stop();
+        bgmSource.volume = startVolume; // trả lại volume gốc để lần chơi tiếp theo (reload scene) không bị câm nhạc
     }
 
     IEnumerator DeathFreezeSequence()

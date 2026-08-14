@@ -68,6 +68,23 @@ public class EnemySkeleton : MonoBehaviour, IDamageable
     public string deathAnimStateName = "Die"; // tên state/clip Die trong Animator
     public float deathAnimDuration = 1f;      // enemy sẽ biến mất sau đúng khoảng thời gian này
 
+    [Header("SFX")]
+    public AudioSource audioSource;          // nếu để trống sẽ tự GetComponent/AddComponent
+    public AudioClip[] moveSfxClips;         // tiếng bước đi, phát lặp lại theo interval
+    public float moveSfxInterval = 0.4f;     // khoảng cách giữa 2 lần phát âm thanh di chuyển
+    public AudioClip[] hurtSfxClips;         // phát khi bị đánh trúng / knockback
+    public AudioClip[] attackSfxClips;       // phát khi bắt đầu ra đòn (lúc windup)
+    public AudioClip dieSfxClip;             // phát khi chết
+    [Range(0f, 1f)] public float sfxVolume = 1f;
+
+    [Header("SFX - Khoảng cách nghe")]
+    public bool limitSfxByDistance = true;   // bật để chỉ nghe khi player ở gần
+    public float sfxMinDistance = 1.5f;      // trong khoảng này nghe full volume
+    public float sfxMaxDistance = 6f;        // ngoài khoảng này không nghe thấy nữa
+    public AudioRolloffMode sfxRolloffMode = AudioRolloffMode.Linear;
+
+    private float moveSfxTimer = 0f;
+
     private EnemyHitBox hitBoxScript;
     private Rigidbody2D rb;
     private Animator animator;
@@ -96,6 +113,8 @@ public class EnemySkeleton : MonoBehaviour, IDamageable
         rb.constraints = RigidbodyConstraints2D.FreezeRotation;
 
         currentHealth = maxHealth;
+
+        SetupAudioSource();
 
         PickNewIdleOrMove();
         if (attackHitBox != null)
@@ -198,6 +217,8 @@ public class EnemySkeleton : MonoBehaviour, IDamageable
         if (animator != null)
             animator.SetTrigger("Attack");
 
+        PlayAttackSfx();
+
         // Chờ "vung tay" xong rồi mới bật hitbox thật sự gây damage
         yield return new WaitForSeconds(attackWindup);
 
@@ -256,6 +277,7 @@ public class EnemySkeleton : MonoBehaviour, IDamageable
             animator.ResetTrigger("Attack");
         }
 
+        PlayDieSfx();
         PlayDeathAnimation();
 
         Destroy(gameObject, deathAnimDuration);
@@ -311,6 +333,8 @@ public class EnemySkeleton : MonoBehaviour, IDamageable
 
         if (animator != null)
             animator.SetTrigger("Hurt");
+
+        PlayHurtSfx();
 
         StopKnockbackRoutineIfRunning();
         knockbackRoutine = StartCoroutine(KnockbackRoutine(direction, force, upForce));
@@ -576,8 +600,83 @@ public class EnemySkeleton : MonoBehaviour, IDamageable
         if (animator == null) return;
 
         float speed = Mathf.Abs(rb.linearVelocity.x);
+        bool walking = speed > 0.05f;
+
         animator.SetFloat("Speed", speed);
-        animator.SetBool("isWalking", speed > 0.05f);
+        animator.SetBool("isWalking", walking);
+
+        HandleMoveSfx(walking);
+    }
+
+    // ---------------- SFX ----------------
+
+    private void SetupAudioSource()
+    {
+        if (audioSource == null)
+        {
+            audioSource = GetComponent<AudioSource>();
+            if (audioSource == null)
+                audioSource = gameObject.AddComponent<AudioSource>();
+        }
+        audioSource.playOnAwake = false;
+        audioSource.loop = false;
+
+        if (limitSfxByDistance)
+        {
+            // spatialBlend = 1 -> âm thanh 3D, tự nhỏ dần theo khoảng cách tới AudioListener
+            // (AudioListener thường gắn trên Player hoặc Camera bám theo Player)
+            audioSource.spatialBlend = 1f;
+            audioSource.rolloffMode = sfxRolloffMode;
+            audioSource.minDistance = sfxMinDistance;
+            audioSource.maxDistance = sfxMaxDistance;
+        }
+        else
+        {
+            audioSource.spatialBlend = 0f; // 2D, nghe rõ mọi lúc
+        }
+    }
+
+    private void HandleMoveSfx(bool isWalking)
+    {
+        if (!isWalking)
+        {
+            moveSfxTimer = 0f;
+            return;
+        }
+
+        moveSfxTimer -= Time.deltaTime;
+        if (moveSfxTimer <= 0f)
+        {
+            moveSfxTimer = moveSfxInterval;
+            PlayRandomClip(moveSfxClips);
+        }
+    }
+
+    private void PlayAttackSfx()
+    {
+        PlayRandomClip(attackSfxClips);
+    }
+
+    private void PlayHurtSfx()
+    {
+        PlayRandomClip(hurtSfxClips);
+    }
+
+    private void PlayDieSfx()
+    {
+        if (dieSfxClip == null || audioSource == null) return;
+        // Dùng PlayOneShot để tiếng chết vẫn kêu hết dù object bị Destroy sau đó không lâu
+        audioSource.PlayOneShot(dieSfxClip, sfxVolume);
+    }
+
+    private void PlayRandomClip(AudioClip[] clips)
+    {
+        if (audioSource == null || clips == null || clips.Length == 0) return;
+
+        AudioClip clip = clips[Random.Range(0, clips.Length)];
+        if (clip == null) return;
+
+        audioSource.PlayOneShot(clip, sfxVolume);
     }
 
     private void OnCollisionEnter2D(Collision2D collision)
